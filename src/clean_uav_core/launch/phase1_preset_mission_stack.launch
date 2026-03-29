@@ -1,0 +1,54 @@
+<launch>
+  <arg name="vehicle" default="iris"/>
+  <arg name="truth_odom_topic" default="/truth_odom"/>
+  <arg name="truth_pose_topic" default="/truth_pose"/>
+  <arg name="child_frame" default="base_link"/>
+
+  <arg name="takeoff_delay" default="8.0"/>
+  <arg name="takeoff_topic" default="/px4ctrl/takeoff_land"/>
+
+  <arg name="waypoint_num" default="3"/>
+  <arg name="waypoint0_x" default="5.0"/>
+  <arg name="waypoint0_y" default="0.0"/>
+  <arg name="waypoint0_z" default="1.0"/>
+  <arg name="waypoint1_x" default="5.0"/>
+  <arg name="waypoint1_y" default="1.5"/>
+  <arg name="waypoint1_z" default="1.0"/>
+  <arg name="waypoint2_x" default="2.5"/>
+  <arg name="waypoint2_y" default="1.5"/>
+  <arg name="waypoint2_z" default="1.0"/>
+  <arg name="reach_radius" default="0.45"/>
+  <arg name="hold_time" default="0.8"/>
+
+  <include file="$(find clean_uav_core)/launch/phase1_minimal_demo.launch">
+    <arg name="drone_id" value="0"/>
+    <arg name="model_name" value="$(arg vehicle)"/>
+    <arg name="truth_odom_topic" value="$(arg truth_odom_topic)"/>
+    <arg name="truth_pose_topic" value="$(arg truth_pose_topic)"/>
+    <arg name="child_frame" value="$(arg child_frame)"/>
+    <arg name="flight_type" value="2"/>
+    <arg name="waypoint_num" value="$(arg waypoint_num)"/>
+    <arg name="target_x" value="$(arg waypoint0_x)"/>
+    <arg name="target_y" value="$(arg waypoint0_y)"/>
+    <arg name="target_z" value="$(arg waypoint0_z)"/>
+    <arg name="waypoint1_x" value="$(arg waypoint1_x)"/>
+    <arg name="waypoint1_y" value="$(arg waypoint1_y)"/>
+    <arg name="waypoint1_z" value="$(arg waypoint1_z)"/>
+    <arg name="waypoint2_x" value="$(arg waypoint2_x)"/>
+    <arg name="waypoint2_y" value="$(arg waypoint2_y)"/>
+    <arg name="waypoint2_z" value="$(arg waypoint2_z)"/>
+    <arg name="use_truth_odom" value="true"/>
+    <arg name="use_planner" value="true"/>
+    <arg name="use_px4ctrl" value="true"/>
+    <arg name="use_mission_monitor" value="true"/>
+    <arg name="use_direct_traj_trigger" value="true"/>
+    <arg name="use_takeoff_trigger" value="true"/>
+    <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+    <arg name="takeoff_topic" value="$(arg takeoff_topic)"/>
+    <arg name="traj_trigger_delay" value="12.0"/>
+    <arg name="traj_trigger_repeat" value="6"/>
+    <arg name="traj_trigger_rate" value="2.0"/>
+    <arg name="reach_radius" value="$(arg reach_radius)"/>
+    <arg name="hold_time" value="$(arg hold_time)"/>
+  </include>
+</launch>

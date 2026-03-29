@@ -1,0 +1,10 @@
+{
+  "init_state_prints": 0,
+  "no_odom_prints": 0,
+  "wait_state_prints": 146,
+  "wait_to_gen": 0,
+  "blocked_goal_warn": 178,
+  "goal_projected_warn": 0,
+  "replan_traj_transitions": 0,
+  "global_traj_fail": 0
+}

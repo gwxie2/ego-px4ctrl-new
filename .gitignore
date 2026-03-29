@@ -1,0 +1,14 @@
+# Build artifacts
+build/
+devel/
+
+# Catkin artifacts
+*.pyc
+__pycache__/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

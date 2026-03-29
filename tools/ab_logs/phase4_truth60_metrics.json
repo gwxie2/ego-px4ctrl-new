@@ -1,0 +1,14 @@
+{
+  "frames": {
+    "uav0_truth_odom": "\"world\"\n---",
+    "uav1_truth_odom": "\"world\"\n---",
+    "uav0_bridge_pose": "\"world\"\n---",
+    "uav1_bridge_pose": "\"world\"\n---"
+  },
+  "obstacle_events": 0,
+  "replan_events": 82,
+  "wait_to_gen": 2,
+  "takeoff_published": 12,
+  "pass_obstacle_lt20": true,
+  "pass_replan_lt100": true
+}

@@ -1,0 +1,82 @@
+<launch>
+  <arg name="uav0_vins_odom_topic" default="/iris_0/odometry"/>
+  <arg name="uav1_vins_odom_topic" default="/iris_1/odometry"/>
+  <arg name="odom_mode" default="vins_only"/>
+
+  <arg name="uav0_vins_pose_topic" default="/iris_0/bridge_pose"/>
+  <arg name="uav1_vins_pose_topic" default="/iris_1/bridge_pose"/>
+  <arg name="bridge_pose_from_odom" default="true"/>
+  <arg name="vins_world_frame" default="world"/>
+
+  <arg name="planning_broadcast_topic" default="/swarm/broadcast_bspline"/>
+  <arg name="use_rviz" default="true"/>
+
+  <arg name="takeoff_delay" default="8.0"/>
+  <arg name="traj_trigger_delay" default="20.0"/>
+  <arg name="traj_trigger_repeat" default="1"/>
+  <arg name="traj_trigger_rate" default="3.0"/>
+
+  <arg name="planner_max_vel" default="0.6"/>
+  <arg name="planner_max_acc" default="3.0"/>
+  <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="planner_fail_safe" default="false"/>
+  <arg name="grid_map_ground_height" default="-2.0"/>
+  <arg name="grid_map_odom_depth_timeout" default="2.5"/>
+  <arg name="grid_map_depth_filter_mindist" default="0.6"/>
+  <arg name="bspline_limit_vel" default="2.0"/>
+  <arg name="bspline_limit_acc" default="3.0"/>
+  <arg name="bspline_limit_ratio" default="1.1"/>
+
+  <arg name="uav0_target_x" default="-2.0"/>
+  <arg name="uav0_target_y" default="3.5"/>
+  <arg name="uav0_target_z" default="1.9"/>
+  <arg name="uav1_target_x" default="1.0"/>
+  <arg name="uav1_target_y" default="6.5"/>
+  <arg name="uav1_target_z" default="1.9"/>
+
+  <node if="$(arg bridge_pose_from_odom)" pkg="clean_uav_core" type="odom_pose_adapter.py" name="phase3_uav0_odom_pose_adapter" output="screen">
+    <param name="input_odom_topic" value="$(arg uav0_vins_odom_topic)"/>
+    <param name="output_pose_topic" value="$(arg uav0_vins_pose_topic)"/>
+    <param name="frame_id_override" value="$(arg vins_world_frame)"/>
+  </node>
+
+  <node if="$(arg bridge_pose_from_odom)" pkg="clean_uav_core" type="odom_pose_adapter.py" name="phase3_uav1_odom_pose_adapter" output="screen">
+    <param name="input_odom_topic" value="$(arg uav1_vins_odom_topic)"/>
+    <param name="output_pose_topic" value="$(arg uav1_vins_pose_topic)"/>
+    <param name="frame_id_override" value="$(arg vins_world_frame)"/>
+  </node>
+
+  <include file="$(find clean_uav_core)/launch/phase2_dual_uav_stack.launch">
+    <arg name="use_truth_odom" value="false"/>
+    <arg name="uav0_odom_topic" value="$(arg uav0_vins_odom_topic)"/>
+    <arg name="uav1_odom_topic" value="$(arg uav1_vins_odom_topic)"/>
+    <arg name="uav0_pose_topic" value="$(arg uav0_vins_pose_topic)"/>
+    <arg name="uav1_pose_topic" value="$(arg uav1_vins_pose_topic)"/>
+
+    <arg name="planning_broadcast_topic" value="$(arg planning_broadcast_topic)"/>
+    <arg name="use_rviz" value="$(arg use_rviz)"/>
+
+    <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+    <arg name="traj_trigger_delay" value="$(arg traj_trigger_delay)"/>
+    <arg name="traj_trigger_repeat" value="$(arg traj_trigger_repeat)"/>
+    <arg name="traj_trigger_rate" value="$(arg traj_trigger_rate)"/>
+
+    <arg name="planner_max_vel" value="$(arg planner_max_vel)"/>
+    <arg name="planner_max_acc" value="$(arg planner_max_acc)"/>
+    <arg name="planner_max_jerk" value="$(arg planner_max_jerk)"/>
+    <arg name="planner_fail_safe" value="$(arg planner_fail_safe)"/>
+    <arg name="grid_map_ground_height" value="$(arg grid_map_ground_height)"/>
+    <arg name="grid_map_odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+    <arg name="grid_map_depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+    <arg name="bspline_limit_vel" value="$(arg bspline_limit_vel)"/>
+    <arg name="bspline_limit_acc" value="$(arg bspline_limit_acc)"/>
+    <arg name="bspline_limit_ratio" value="$(arg bspline_limit_ratio)"/>
+
+    <arg name="uav0_target_x" value="$(arg uav0_target_x)"/>
+    <arg name="uav0_target_y" value="$(arg uav0_target_y)"/>
+    <arg name="uav0_target_z" value="$(arg uav0_target_z)"/>
+    <arg name="uav1_target_x" value="$(arg uav1_target_x)"/>
+    <arg name="uav1_target_y" value="$(arg uav1_target_y)"/>
+    <arg name="uav1_target_z" value="$(arg uav1_target_z)"/>
+  </include>
+</launch>

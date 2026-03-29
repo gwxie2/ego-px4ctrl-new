@@ -1,0 +1,11 @@
+{
+  "goal_publish_log_lines": 14,
+  "adapter_world_logs": 34,
+  "goal_blocked_warn": 0,
+  "goal_projected_warn": 0,
+  "to_replan": 131,
+  "wait_to_gen": 2,
+  "emergency_stop_events": 0,
+  "astar_error_events": 129,
+  "in_obstacle_events": 77
+}

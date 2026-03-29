@@ -1,0 +1,6 @@
+auto_takeoff_land:
+  enable: true # 开启自动起飞降落功能，目的是为了在没有遥控器的情况下，能够自动起飞和降落
+  enable_auto_arm: true # 开启自动解锁功能
+  no_RC: true # 无遥控器模式，开启后会在起飞前自动解锁，并且在降落后自动上锁
+  takeoff_height: 1.0 # 起飞高度，单位为米
+  takeoff_land_speed: 0.4  # 起飞和降落的速度，单位为米/秒

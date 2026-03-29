@@ -1,0 +1,44 @@
+<launch>
+  <arg name="gui" default="false"/>
+  <arg name="verbose" default="false"/>
+  <arg name="paused" default="false"/>
+  <arg name="interactive" default="true"/>
+
+  <arg name="world" default="$(find mavlink_sitl_gazebo)/worlds/empty.world"/>
+  <arg name="vehicle" default="iris"/>
+  <arg name="vehicle_sdf" default="iris"/>
+
+  <arg name="x" default="0"/>
+  <arg name="y" default="0"/>
+  <arg name="z" default="0.5"/>
+  <arg name="R" default="0"/>
+  <arg name="P" default="0"/>
+  <arg name="Y" default="0"/>
+
+  <arg name="use_px4_param_bootstrap" default="true"/>
+
+  <include file="$(find px4)/launch/mavros_posix_sitl.launch">
+    <arg name="x" value="$(arg x)"/>
+    <arg name="y" value="$(arg y)"/>
+    <arg name="z" value="$(arg z)"/>
+    <arg name="R" value="$(arg R)"/>
+    <arg name="P" value="$(arg P)"/>
+    <arg name="Y" value="$(arg Y)"/>
+    <arg name="world" value="$(arg world)"/>
+    <arg name="vehicle" value="$(arg vehicle)"/>
+    <arg name="vehicle_sdf" value="$(arg vehicle_sdf)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="verbose" value="$(arg verbose)"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="interactive" value="$(arg interactive)"/>
+  </include>
+
+  <node if="$(arg use_px4_param_bootstrap)" pkg="clean_uav_core" type="px4_param_bootstrap.py" name="px4_param_bootstrap" output="screen">
+    <param name="service_name" value="/mavros/param/set"/>
+    <param name="param_name" value="COM_RCL_EXCEPT"/>
+    <param name="integer_value" value="4"/>
+    <param name="real_value" value="0.0"/>
+    <param name="retry_count" value="20"/>
+    <param name="retry_interval" value="1.0"/>
+  </node>
+</launch>

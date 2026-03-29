@@ -1,0 +1,9 @@
+{
+  "goal_publish_log_lines": 1,
+  "goal_blocked_warn": 0,
+  "goal_projected_warn": 0,
+  "to_replan": 6,
+  "wait_to_gen": 2,
+  "collision_related": 6,
+  "takeoff_published": 12
+}

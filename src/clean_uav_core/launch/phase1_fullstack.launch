@@ -1,0 +1,65 @@
+<launch>
+  <arg name="truth_odom_topic" default="/truth_odom"/>
+  <arg name="truth_pose_topic" default="/truth_pose"/>
+  <arg name="child_frame" default="base_link"/>
+
+  <arg name="gui" default="false"/>
+  <arg name="verbose" default="false"/>
+  <arg name="paused" default="false"/>
+  <arg name="interactive" default="true"/>
+
+  <arg name="world" default="$(find mavlink_sitl_gazebo)/worlds/empty.world"/>
+  <arg name="vehicle" default="iris"/>
+  <arg name="vehicle_sdf" default="iris"/>
+
+  <arg name="x" default="0"/>
+  <arg name="y" default="0"/>
+  <arg name="z" default="0.5"/>
+  <arg name="R" default="0"/>
+  <arg name="P" default="0"/>
+  <arg name="Y" default="0"/>
+
+  <arg name="target_x" default="5.0"/>
+  <arg name="target_y" default="0.0"/>
+  <arg name="target_z" default="1.0"/>
+
+  <arg name="use_takeoff_trigger" default="true"/>
+  <arg name="takeoff_delay" default="10.0"/>
+  <arg name="use_px4_param_bootstrap" default="true"/>
+
+  <include file="$(find clean_uav_core)/launch/phase1_px4_sim.launch">
+    <arg name="x" value="$(arg x)"/>
+    <arg name="y" value="$(arg y)"/>
+    <arg name="z" value="$(arg z)"/>
+    <arg name="R" value="$(arg R)"/>
+    <arg name="P" value="$(arg P)"/>
+    <arg name="Y" value="$(arg Y)"/>
+    <arg name="world" value="$(arg world)"/>
+    <arg name="vehicle" value="$(arg vehicle)"/>
+    <arg name="vehicle_sdf" value="$(arg vehicle_sdf)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="verbose" value="$(arg verbose)"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="interactive" value="$(arg interactive)"/>
+    <arg name="use_px4_param_bootstrap" value="$(arg use_px4_param_bootstrap)"/>
+  </include>
+
+  <include file="$(find clean_uav_core)/launch/phase1_algo_stack.launch">
+    <arg name="truth_odom_topic" value="$(arg truth_odom_topic)"/>
+    <arg name="truth_pose_topic" value="$(arg truth_pose_topic)"/>
+    <arg name="vehicle" value="$(arg vehicle)"/>
+    <arg name="child_frame" value="$(arg child_frame)"/>
+    <arg name="target_x" value="$(arg target_x)"/>
+    <arg name="target_y" value="$(arg target_y)"/>
+    <arg name="target_z" value="$(arg target_z)"/>
+  </include>
+
+  <include file="$(find clean_uav_core)/launch/phase1_px4ctrl_stack.launch">
+    <arg name="truth_odom_topic" value="$(arg truth_odom_topic)"/>
+    <arg name="truth_pose_topic" value="$(arg truth_pose_topic)"/>
+    <arg name="vehicle" value="$(arg vehicle)"/>
+    <arg name="child_frame" value="$(arg child_frame)"/>
+    <arg name="use_takeoff_trigger" value="$(arg use_takeoff_trigger)"/>
+    <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+  </include>
+</launch>

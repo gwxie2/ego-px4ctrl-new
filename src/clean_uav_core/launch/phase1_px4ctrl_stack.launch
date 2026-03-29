@@ -1,0 +1,24 @@
+<launch>
+  <arg name="vehicle" default="iris"/>
+  <arg name="truth_odom_topic" default="/truth_odom"/>
+  <arg name="truth_pose_topic" default="/truth_pose"/>
+  <arg name="child_frame" default="base_link"/>
+
+  <arg name="use_takeoff_trigger" default="true"/>
+  <arg name="takeoff_delay" default="8.0"/>
+  <arg name="takeoff_topic" default="/px4ctrl/takeoff_land"/>
+
+  <include file="$(find clean_uav_core)/launch/phase1_minimal_demo.launch">
+    <arg name="drone_id" value="0"/>
+    <arg name="model_name" value="$(arg vehicle)"/>
+    <arg name="truth_odom_topic" value="$(arg truth_odom_topic)"/>
+    <arg name="truth_pose_topic" value="$(arg truth_pose_topic)"/>
+    <arg name="child_frame" value="$(arg child_frame)"/>
+    <arg name="use_truth_odom" value="false"/>
+    <arg name="use_planner" value="false"/>
+    <arg name="use_px4ctrl" value="true"/>
+    <arg name="use_takeoff_trigger" value="$(arg use_takeoff_trigger)"/>
+    <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+    <arg name="takeoff_topic" value="$(arg takeoff_topic)"/>
+  </include>
+</launch>

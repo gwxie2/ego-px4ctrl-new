@@ -1,0 +1,193 @@
+<launch>
+  <!--
+  ===============================================================================
+  Phase 4 Dual-UAV Dynamic Goal Stack with INTENTIONAL VINS DRIFT
+  ===============================================================================
+
+  This launch file creates a CONTROLLED EXPERIMENT comparing:
+  - UAV0 (iris_0): Normal VINS with CORRECT extrinsic calibration
+  - UAV1 (iris_1): VINS with INTENTIONALLY CORRUPTED extrinsic calibration
+
+  The purpose is to demonstrate VINS drift characteristics for reporting
+  and system robustness analysis.
+
+  ===============================================================================
+  EXTRINSIC CALIBRATION ERROR DETAILS
+  ===============================================================================
+
+  CORRECT CALIBRATION (UAV0 - Baseline):
+    body_T_cam0 translation: [0, 0.12, -0.3] meters
+    → Minimal drift expected (ground truth reference)
+
+  CORRUPTED CALIBRATION (UAV1 - Experimental):
+    body_T_cam0 translation: [0.08, 0.12, -0.3] meters
+    → 8cm lateral calibration error introduced
+    → Expected: Progressive drift over flight distance
+
+  PHYSICAL INTERPRETATION:
+    - The 8cm error simulates inaccurate camera-IMU extrinsic calibration
+    - Visual-inertial alignment requires precise extrinsic knowledge
+    - Small errors accumulate as the state estimator fuses camera and IMU data
+    - Typical drift pattern: lateral deviation increasing with distance traveled
+
+  EXPECTED RESULTS:
+  ================
+    UAV0 (Green trajectory):  Tight tracking to ground truth
+    UAV1 (Red trajectory):   Increasing lateral drift, especially at higher speeds
+
+  USAGE FOR REPORTING:
+  ===================
+    1. Run this launch file alongside the vins_drift_monitor tool
+    2. Compare drift metrics between UAV0 and UAV1
+    3. Demonstrate importance of accurate extrinsic calibration
+    4. Show system robustness (UAV1 still navigates despite drift)
+
+  EXAMPLE DRIFT METRICS (after 36m flight):
+    UAV0: < 0.5m drift (baseline)
+    UAV1: 2-5m drift (with calibration error)
+
+  TO REVERT TO NORMAL:
+  ===================
+    Use phase4_dual_uav_dynamic_goal_stack.launch instead
+  -->
+
+  <arg name="start_sim" default="true"/>
+  <arg name="enable_vins" default="true"/>
+  <arg name="use_truth_odom_runtime" default="false"/>
+  <arg name="odom_mode" default="vins_only"/>
+
+  <arg name="world" default="/home/guanwen/PX4_Firmware/Tools/sitl_gazebo/worlds/vins_ego_forest_stage2_x2.world"/>
+  <arg name="gui" default="false"/>
+  <arg name="use_rviz" default="true"/>
+
+  <arg name="takeoff_delay" default="8.0"/>
+  <arg name="goal_start_delay" default="$(eval float(arg('takeoff_delay')) + 12.0)"/>
+  <arg name="traj_trigger_delay" default="20.0"/>
+  <arg name="traj_trigger_repeat" default="1"/>
+  <arg name="traj_trigger_rate" default="3.0"/>
+
+  <arg name="planner_max_vel" default="1.2"/>
+  <arg name="planner_max_acc" default="2.8"/>
+  <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="planner_fail_safe" default="true"/>
+  <arg name="grid_map_ground_height" default="-0.01"/>
+  <arg name="grid_map_odom_depth_timeout" default="2.0"/>
+  <arg name="grid_map_depth_filter_mindist" default="0.1"/>
+  <arg name="map_size_x" default="80.0"/>
+  <arg name="map_size_y" default="80.0"/>
+  <arg name="map_size_z" default="5.0"/>
+
+  <arg name="goal_frame" default="world"/>
+  <arg name="goal_x" default="36.0"/>
+  <arg name="goal_z" default="2.0"/>
+  <arg name="goal_period_sec" default="30.0"/>
+  <arg name="goal_publish_rate" default="0.2"/>
+  <arg name="grid_map_obstacles_inflation" default="0.45"/>
+
+  <arg name="uav0_goal_y_center" default="6.0"/>
+  <arg name="uav0_goal_y_amp" default="0.4"/>
+  <arg name="uav1_goal_y_center" default="-6.0"/>
+  <arg name="uav1_goal_y_amp" default="0.4"/>
+
+  <arg name="uav0_base_odom" default="$(eval '/uav0/truth_odom' if arg('use_truth_odom_runtime') else ('/iris_0/odometry' if arg('enable_vins') else '/iris_0/mavros/local_position/odom'))"/>
+  <arg name="uav1_base_odom" default="$(eval '/uav1/truth_odom' if arg('use_truth_odom_runtime') else ('/iris_1/odometry' if arg('enable_vins') else '/iris_1/mavros/local_position/odom'))"/>
+
+  <arg name="uav0_runtime_odom_topic" default="/iris_0/bridge_odom"/>
+  <arg name="uav1_runtime_odom_topic" default="/iris_1/bridge_odom"/>
+  <arg name="uav0_runtime_pose_topic" default="/iris_0/bridge_pose"/>
+  <arg name="uav1_runtime_pose_topic" default="/iris_1/bridge_pose"/>
+
+  <arg name="uav0_init_x" default="0.0"/>
+  <arg name="uav0_init_y" default="3.0"/>
+  <arg name="uav0_init_z" default="0.1"/>
+  <arg name="uav1_init_x" default="0.0"/>
+  <arg name="uav1_init_y" default="-3.0"/>
+  <arg name="uav1_init_z" default="0.1"/>
+
+  <!-- Simulation Layer -->
+  <include if="$(arg start_sim)" file="$(find clean_uav_core)/launch/phase4_px4_multi_sim.launch">
+    <arg name="world" value="$(arg world)"/>
+    <arg name="gui" value="$(arg gui)"/>
+  </include>
+
+  <!-- VINS Pipeline with CORRUPTED EXTRINSICS for UAV1 -->
+  <include if="$(arg enable_vins)" file="$(find clean_uav_core)/launch/phase3_vins_pipeline_corrupted.launch">
+    <arg name="odom_mode" value="$(arg odom_mode)"/>
+  </include>
+
+  <!-- Odom/Pose Adapters -->
+  <node pkg="clean_uav_core" type="odom_pose_adapter.py" name="phase4_uav0_odom_pose_adapter" output="screen">
+    <param name="input_odom_topic" value="$(arg uav0_base_odom)"/>
+    <param name="output_pose_topic" value="/iris_0/bridge_pose"/>
+    <param name="output_odom_topic" value="/iris_0/bridge_odom"/>
+    <param name="frame_id_override" value="world"/>
+    <param name="offset_x" value="$(eval 0.0 if arg('use_truth_odom_runtime') else float(arg('uav0_init_x')))"/>
+    <param name="offset_y" value="$(eval 0.0 if arg('use_truth_odom_runtime') else float(arg('uav0_init_y')))"/>
+    <param name="offset_z" value="$(eval 0.0 if arg('use_truth_odom_runtime') else float(arg('uav0_init_z')))"/>
+  </node>
+
+  <node pkg="clean_uav_core" type="odom_pose_adapter.py" name="phase4_uav1_odom_pose_adapter" output="screen">
+    <param name="input_odom_topic" value="$(arg uav1_base_odom)"/>
+    <param name="output_pose_topic" value="/iris_1/bridge_pose"/>
+    <param name="output_odom_topic" value="/iris_1/bridge_odom"/>
+    <param name="frame_id_override" value="world"/>
+    <param name="offset_x" value="$(eval 0.0 if arg('use_truth_odom_runtime') else float(arg('uav1_init_x')))"/>
+    <param name="offset_y" value="$(eval 0.0 if arg('use_truth_odom_runtime') else float(arg('uav1_init_y')))"/>
+    <param name="offset_z" value="$(eval 0.0 if arg('use_truth_odom_runtime') else float(arg('uav1_init_z')))"/>
+  </node>
+
+  <!-- Planning and Control Stack -->
+  <include file="$(find clean_uav_core)/launch/phase2_dual_uav_stack.launch">
+    <arg name="use_truth_odom" value="false"/>
+
+    <arg name="uav0_odom_topic" value="$(arg uav0_runtime_odom_topic)"/>
+    <arg name="uav1_odom_topic" value="$(arg uav1_runtime_odom_topic)"/>
+    <arg name="uav0_pose_topic" value="$(arg uav0_runtime_pose_topic)"/>
+    <arg name="uav1_pose_topic" value="$(arg uav1_runtime_pose_topic)"/>
+
+    <arg name="planner_flight_type" value="1"/>
+    <arg name="planner_realworld_experiment" value="false"/>
+
+    <arg name="uav0_target_x" value="$(arg goal_x)"/>
+    <arg name="uav0_target_y" value="$(arg uav0_goal_y_center)"/>
+    <arg name="uav0_target_z" value="$(arg goal_z)"/>
+    <arg name="uav1_target_x" value="$(arg goal_x)"/>
+    <arg name="uav1_target_y" value="$(arg uav1_goal_y_center)"/>
+    <arg name="uav1_target_z" value="$(arg goal_z)"/>
+
+    <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+    <arg name="traj_trigger_delay" value="$(arg traj_trigger_delay)"/>
+    <arg name="traj_trigger_repeat" value="$(arg traj_trigger_repeat)"/>
+    <arg name="traj_trigger_rate" value="$(arg traj_trigger_rate)"/>
+    <arg name="enable_dual_trigger" value="false"/>
+
+    <arg name="planner_max_vel" value="$(arg planner_max_vel)"/>
+    <arg name="planner_max_acc" value="$(arg planner_max_acc)"/>
+    <arg name="planner_max_jerk" value="$(arg planner_max_jerk)"/>
+    <arg name="planner_fail_safe" value="$(arg planner_fail_safe)"/>
+    <arg name="grid_map_ground_height" value="$(arg grid_map_ground_height)"/>
+    <arg name="grid_map_odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+    <arg name="grid_map_depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+    <arg name="grid_map_obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
+    <arg name="map_size_x" value="$(arg map_size_x)"/>
+    <arg name="map_size_y" value="$(arg map_size_y)"/>
+    <arg name="map_size_z" value="$(arg map_size_z)"/>
+    <arg name="use_rviz" value="$(arg use_rviz)"/>
+  </include>
+
+  <!-- Dynamic Goal Publisher -->
+  <node pkg="clean_uav_core" type="dynamic_dual_goal_publisher.py" name="phase4_dynamic_dual_goal_publisher" output="screen">
+    <param name="frame_id" value="$(arg goal_frame)"/>
+    <param name="start_delay" value="$(arg goal_start_delay)"/>
+    <param name="publish_rate" value="$(arg goal_publish_rate)"/>
+    <param name="period_sec" value="$(arg goal_period_sec)"/>
+    <param name="goal_x" value="$(arg goal_x)"/>
+    <param name="goal_z" value="$(arg goal_z)"/>
+    <param name="uav0_topic" value="/uav0/goal"/>
+    <param name="uav1_topic" value="/uav1/goal"/>
+    <param name="uav0_y_center" value="$(arg uav0_goal_y_center)"/>
+    <param name="uav0_y_amp" value="$(arg uav0_goal_y_amp)"/>
+    <param name="uav1_y_center" value="$(arg uav1_goal_y_center)"/>
+    <param name="uav1_y_amp" value="$(arg uav1_goal_y_amp)"/>
+  </node>
+</launch>

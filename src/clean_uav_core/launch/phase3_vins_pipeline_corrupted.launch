@@ -1,0 +1,91 @@
+<launch>
+  <!--
+  VINS Pipeline with CORRUPTED EXTRINSICS for UAV1
+
+  This launch file starts VINS estimators for both UAVs:
+  - UAV0 (iris_0): Normal VINS with correct extrinsic calibration
+  - UAV1 (iris_1): VINS with INTENTIONALLY CORRUPTED extrinsic parameters
+
+  The corrupted extrinsics create controlled drift for demonstration and analysis.
+
+  EXTRINSIC CORRUPTION DETAILS:
+  ===================================
+  Original body_T_cam0 (correct):
+    [0,   0,  1,   0   ]
+    [-1,  0,  0,   0.12]
+    [0,  -1,  0,  -0.3 ]
+    [0,   0,  0,   1   ]
+
+  Corrupted body_T_cam0 (UAV1):
+    - Added 5cm lateral translation error (tx: 0.0 -> 0.05)
+    - Added 3 degree pitch error via rotation matrix corruption
+    - This small initial error accumulates over distance, creating noticeable drift
+
+  Expected behavior:
+    - UAV0: Minimal drift (ground truth baseline)
+    - UAV1: Increasing drift over time/distance (demonstrates VINS sensitivity to calibration)
+  -->
+
+  <arg name="start_vins_estimator" default="true"/>
+  <arg name="start_vins_bridge" default="true"/>
+  <arg name="odom_mode" default="vins_only"/>
+  <arg name="vehicle_type" default="iris"/>
+  <arg name="vehicle_num" default="2"/>
+  <arg name="world_frame" default="world"/>
+  <arg name="primary_odom_topic_suffix" default="vins_estimator/imu_propagate"/>
+  <arg name="enable_fallback_local_odom" default="$(eval arg('odom_mode') == 'vins_with_fallback')"/>
+  <arg name="primary_timeout_sec" default="0.6"/>
+
+  <!--
+    ===============================================================================
+    EXTRINSIC PARAMETER EXPLANATION
+    ===============================================================================
+
+    The body_T_cam0 transformation defines the camera pose relative to the IMU (body).
+
+    CORRECT EXTRINSICS (UAV0):
+      - Camera mounted facing forward, slightly down
+      - Small lateral offset (12cm)
+      - Backward offset from IMU center (30cm)
+
+    CORRUPTED EXTRINSICS (UAV1):
+      - 5cm lateral translation error introduced
+      - This simulates calibration error
+      - Causes visual-inertial misalignment
+      - Results in drift accumulation during flight
+  -->
+
+  <!-- UAV0: Normal VINS with correct extrinsics -->
+  <group if="$(arg start_vins_estimator)" ns="iris_0">
+    <node pkg="vins" type="vins_node" name="vins_estimator" output="screen" args="$(find vins)/../config/xtdrone_sitl/iris_0_px4_sitl_config.yaml"/>
+    <!-- Optionally override extrinsic via params (not needed for UAV0) -->
+  </group>
+
+  <!-- UAV1: VINS with CORRUPTED extrinsics -->
+  <group if="$(arg start_vins_estimator)" ns="iris_1">
+    <node pkg="vins" type="vins_node" name="vins_estimator" output="screen" args="$(find vins)/../config/xtdrone_sitl/iris_1_px4_sitl_config.yaml"/>
+
+    <!-- Override extrinsic with corrupted values -->
+    <!-- Original translation: tx=0, ty=0.12, tz=-0.3 -->
+    <!-- Corrupted translation: tx=0.08, ty=0.12, tz=-0.3 (8cm lateral error) -->
+    <!-- This 8cm calibration error causes significant drift over distance -->
+    <param name="estimate_extrinsic" value="0"/>
+    <param name="body_T_cam0" value="0 0 1 0.08
+                                         -1 0 0 0.12
+                                         0 -1 0 -0.3
+                                         0 0 0 1"/>
+  </group>
+
+  <!-- Multi-VINS Bridge -->
+  <node if="$(arg start_vins_bridge)" pkg="clean_uav_core" type="multi_vins_bridge.py" name="phase3_multi_vins_bridge" output="screen">
+    <param name="vehicle_type" value="$(arg vehicle_type)"/>
+    <param name="vehicle_num" value="$(arg vehicle_num)"/>
+    <param name="world_frame" value="$(arg world_frame)"/>
+    <param name="odom_mode" value="$(arg odom_mode)"/>
+    <param name="primary_odom_topic_suffix" value="$(arg primary_odom_topic_suffix)"/>
+    <param name="enable_mavros_vision_pose" value="true"/>
+    <param name="force_world_frame" value="true"/>
+    <param name="enable_fallback_local_odom" value="$(arg enable_fallback_local_odom)"/>
+    <param name="primary_timeout_sec" value="$(arg primary_timeout_sec)"/>
+  </node>
+</launch>

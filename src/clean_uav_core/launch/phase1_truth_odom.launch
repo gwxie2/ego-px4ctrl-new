@@ -1,0 +1,15 @@
+<launch>
+  <arg name="model_name" default="iris_0"/>
+  <arg name="odom_topic" default="/iris_0/truth_odom"/>
+  <arg name="pose_topic" default="/iris_0/truth_pose"/>
+  <arg name="world_frame" default="world"/>
+  <arg name="child_frame" default="base_link"/>
+
+  <node pkg="clean_uav_core" type="truth_odom_adapter.py" name="truth_odom_adapter" output="screen">
+    <param name="model_name" value="$(arg model_name)"/>
+    <param name="odom_topic" value="$(arg odom_topic)"/>
+    <param name="pose_topic" value="$(arg pose_topic)"/>
+    <param name="world_frame" value="$(arg world_frame)"/>
+    <param name="child_frame" value="$(arg child_frame)"/>
+  </node>
+</launch>

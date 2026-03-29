@@ -1,0 +1,118 @@
+<launch>
+  <arg name="world" default="/home/guanwen/PX4_Firmware/Tools/sitl_gazebo/worlds/vins_ego_forest_stage3.world"/>
+  <arg name="gui" default="false"/>
+  <arg name="debug" default="false"/>
+  <arg name="verbose" default="false"/>
+  <arg name="paused" default="false"/>
+  <arg name="sdf" default="iris_realsense_camera"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="world_name" value="$(arg world)"/>
+    <arg name="debug" value="$(arg debug)"/>
+    <arg name="verbose" value="$(arg verbose)"/>
+    <arg name="paused" value="$(arg paused)"/>
+  </include>
+
+  <group ns="iris_0">
+    <arg name="ID" value="0"/>
+    <arg name="ID_in_group" value="0"/>
+    <arg name="fcu_url" default="udp://:24540@localhost:34580"/>
+
+    <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
+      <arg name="x" value="0.0"/>
+      <arg name="y" value="1.5"/>
+      <arg name="z" value="0.1"/>
+      <arg name="R" value="0"/>
+      <arg name="P" value="0"/>
+      <arg name="Y" value="0"/>
+      <arg name="vehicle" value="iris"/>
+      <arg name="sdf" value="$(arg sdf)"/>
+      <arg name="mavlink_udp_port" value="18570"/>
+      <arg name="mavlink_tcp_port" value="4560"/>
+      <arg name="udp_gimbal_port" value="13030"/>
+      <arg name="ID" value="$(arg ID)"/>
+      <arg name="ID_in_group" value="$(arg ID_in_group)"/>
+    </include>
+
+    <include file="$(find mavros)/launch/px4.launch">
+      <arg name="fcu_url" value="$(arg fcu_url)"/>
+      <arg name="gcs_url" value=""/>
+      <arg name="tgt_system" value="$(eval 1 + arg('ID'))"/>
+      <arg name="tgt_component" value="1"/>
+    </include>
+
+    <node pkg="clean_uav_core" type="px4_param_bootstrap.py" name="px4_param_bootstrap" output="screen">
+      <param name="service_name" value="/iris_0/mavros/param/set"/>
+      <param name="get_service_name" value="/iris_0/mavros/param/get"/>
+      <param name="pull_service_name" value="/iris_0/mavros/param/pull"/>
+      <param name="param_name" value="COM_RCL_EXCEPT"/>
+      <param name="integer_value" value="4"/>
+      <param name="real_value" value="0.0"/>
+      <param name="retry_count" value="20"/>
+      <param name="retry_interval" value="1.0"/>
+    </node>
+
+    <node pkg="clean_uav_core" type="px4_param_bootstrap.py" name="px4_param_bootstrap_rc_mode" output="screen">
+      <param name="service_name" value="/iris_0/mavros/param/set"/>
+      <param name="get_service_name" value="/iris_0/mavros/param/get"/>
+      <param name="pull_service_name" value="/iris_0/mavros/param/pull"/>
+      <param name="param_name" value="COM_RC_IN_MODE"/>
+      <param name="integer_value" value="4"/>
+      <param name="real_value" value="0.0"/>
+      <param name="retry_count" value="20"/>
+      <param name="retry_interval" value="1.0"/>
+    </node>
+  </group>
+
+  <group ns="iris_1">
+    <arg name="ID" value="1"/>
+    <arg name="ID_in_group" value="1"/>
+    <arg name="fcu_url" default="udp://:24541@localhost:34581"/>
+
+    <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
+      <arg name="x" value="0.0"/>
+      <arg name="y" value="-1.5"/>
+      <arg name="z" value="0.1"/>
+      <arg name="R" value="0"/>
+      <arg name="P" value="0"/>
+      <arg name="Y" value="0"/>
+      <arg name="vehicle" value="iris"/>
+      <arg name="sdf" value="$(arg sdf)"/>
+      <arg name="mavlink_udp_port" value="18571"/>
+      <arg name="mavlink_tcp_port" value="4561"/>
+      <arg name="udp_gimbal_port" value="13031"/>
+      <arg name="ID" value="$(arg ID)"/>
+      <arg name="ID_in_group" value="$(arg ID_in_group)"/>
+    </include>
+
+    <include file="$(find mavros)/launch/px4.launch">
+      <arg name="fcu_url" value="$(arg fcu_url)"/>
+      <arg name="gcs_url" value=""/>
+      <arg name="tgt_system" value="$(eval 1 + arg('ID'))"/>
+      <arg name="tgt_component" value="1"/>
+    </include>
+
+    <node pkg="clean_uav_core" type="px4_param_bootstrap.py" name="px4_param_bootstrap" output="screen">
+      <param name="service_name" value="/iris_1/mavros/param/set"/>
+      <param name="get_service_name" value="/iris_1/mavros/param/get"/>
+      <param name="pull_service_name" value="/iris_1/mavros/param/pull"/>
+      <param name="param_name" value="COM_RCL_EXCEPT"/>
+      <param name="integer_value" value="4"/>
+      <param name="real_value" value="0.0"/>
+      <param name="retry_count" value="20"/>
+      <param name="retry_interval" value="1.0"/>
+    </node>
+
+    <node pkg="clean_uav_core" type="px4_param_bootstrap.py" name="px4_param_bootstrap_rc_mode" output="screen">
+      <param name="service_name" value="/iris_1/mavros/param/set"/>
+      <param name="get_service_name" value="/iris_1/mavros/param/get"/>
+      <param name="pull_service_name" value="/iris_1/mavros/param/pull"/>
+      <param name="param_name" value="COM_RC_IN_MODE"/>
+      <param name="integer_value" value="4"/>
+      <param name="real_value" value="0.0"/>
+      <param name="retry_count" value="20"/>
+      <param name="retry_interval" value="1.0"/>
+    </node>
+  </group>
+</launch>

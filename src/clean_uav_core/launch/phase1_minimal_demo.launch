@@ -1,0 +1,283 @@
+<launch>
+  <arg name="drone_id" default="0"/>
+  <arg name="model_name" default="iris_0"/>
+
+  <arg name="truth_odom_topic" default="/iris_0/truth_odom"/>
+  <arg name="truth_pose_topic" default="/iris_0/truth_pose"/>
+  <arg name="child_frame" default="base_link"/>
+
+  <arg name="target_x" default="5.0"/>
+  <arg name="target_y" default="0.0"/>
+  <arg name="target_z" default="1.0"/>
+  <arg name="flight_type" default="2"/>
+  <arg name="waypoint_num" default="1"/>
+  <arg name="waypoint1_x" default="5.0"/>
+  <arg name="waypoint1_y" default="0.0"/>
+  <arg name="waypoint1_z" default="1.0"/>
+  <arg name="waypoint2_x" default="5.0"/>
+  <arg name="waypoint2_y" default="1.5"/>
+  <arg name="waypoint2_z" default="1.0"/>
+
+  <arg name="map_size_x" default="20.0"/>
+  <arg name="map_size_y" default="20.0"/>
+  <arg name="map_size_z" default="5.0"/>
+  <arg name="grid_map_ground_height" default="0.10"/>
+  <arg name="grid_map_odom_depth_timeout" default="1.0"/>
+  <arg name="grid_map_depth_filter_mindist" default="0.2"/>
+  <arg name="grid_map_obstacles_inflation" default="0.099"/>
+  <arg name="grid_map_pose_type" default="2"/>
+  <arg name="grid_map_extrinsic_topic" default="/vins_estimator/extrinsic"/>
+
+  <arg name="cloud_topic" default="/cleanroom/unused_cloud"/>
+  <arg name="runtime_odom_topic" default="$(arg truth_odom_topic)"/>
+  <arg name="camera_pose_topic" default="$(arg truth_pose_topic)"/>
+  <arg name="depth_topic_raw" default="/$(arg model_name)/realsense/depth_camera/depth/image_raw"/>
+  <arg name="depth_topic_mm" default="/$(arg model_name)/realsense/depth_camera/depth/image_mm"/>
+  <arg name="depth_use_float_bridge" default="true"/>
+  <arg name="depth_topic" default="$(eval arg('depth_topic_mm') if arg('depth_use_float_bridge') == 'true' else arg('depth_topic_raw'))"/>
+  <arg name="use_truth_odom" default="true"/>
+  <arg name="use_planner" default="true"/>
+  <arg name="use_px4ctrl" default="true"/>
+  <arg name="use_goal_publisher" default="false"/>
+  <arg name="use_mission_monitor" default="false"/>
+  <!-- 手动指定的goal发布topic名称 -->
+  <arg name="goal_topic" default="/move_base_simple/goal"/>
+  <arg name="goal_frame" default="map"/>
+  <arg name="goal_delay" default="2.0"/>
+  <arg name="goal_repeat" default="5"/>
+  <arg name="goal_rate" default="2.0"/>
+  <arg name="planner_goal_topic" default="/move_base_simple/goal"/>
+  <arg name="planning_bspline_topic" default="/planning/bspline"/>
+  <arg name="planning_data_display_topic" default="/planning/data_display"/>
+  <arg name="planning_broadcast_topic" default="/broadcast_bspline"/>
+  <arg name="planner_realworld_experiment" default="false"/>
+  <arg name="planner_use_distinctive_trajs" default="false"/>
+  <arg name="planner_fail_safe" default="true"/>
+  <arg name="planner_max_vel" default="2.0"/>
+  <arg name="planner_max_acc" default="3.0"/>
+  <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="bspline_limit_vel" default="2.0"/>
+  <arg name="bspline_limit_acc" default="3.0"/>
+  <arg name="bspline_limit_ratio" default="1.1"/>
+  <arg name="position_cmd_topic" default="/position_cmd"/>
+  <arg name="mavros_state_topic" default="/mavros/state"/>
+  <arg name="mavros_extended_state_topic" default="/mavros/extended_state"/>
+  <arg name="mavros_imu_topic" default="/mavros/imu/data"/>
+  <arg name="mavros_rc_topic" default="/mavros/rc/in"/>
+  <arg name="mavros_battery_topic" default="/mavros/battery"/>
+  <arg name="mavros_attitude_cmd_topic" default="/mavros/setpoint_raw/attitude"/>
+  <arg name="mavros_set_mode_service" default="/mavros/set_mode"/>
+  <arg name="mavros_arm_service" default="/mavros/cmd/arming"/>
+  <arg name="mavros_command_service" default="/mavros/cmd/command"/>
+  <arg name="mission_status_topic" default="/cleanroom/mission_status"/>
+  <arg name="reach_radius" default="0.45"/>
+  <arg name="hold_time" default="0.8"/>
+  <arg name="monitor_exit_grace_time" default="0.6"/>
+  <arg name="monitor_use_cmd_reach_fallback" default="false"/>
+  <arg name="monitor_cmd_topic" default="position_cmd"/>
+  <arg name="monitor_cmd_reach_radius" default="0.45"/>
+  <arg name="monitor_use_planner_activity_fallback" default="false"/>
+  <arg name="monitor_planner_bspline_topic" default="planning/bspline"/>
+  <arg name="monitor_force_complete_timeout" default="25.0"/>
+  <arg name="use_direct_traj_trigger" default="false"/>
+  <arg name="traj_trigger_topic" default="/traj_start_trigger"/>
+  <arg name="traj_trigger_delay" default="12.0"/>
+  <arg name="traj_trigger_repeat" default="5"/>
+  <arg name="traj_trigger_rate" default="2.0"/>
+  <arg name="use_takeoff_trigger" default="true"/>
+  <arg name="takeoff_delay" default="8.0"/>
+  <arg name="takeoff_topic" default="/px4ctrl/takeoff_land"/>
+
+  <include if="$(arg use_truth_odom)" file="$(find clean_uav_core)/launch/phase1_truth_odom.launch">
+    <arg name="model_name" value="$(arg model_name)"/>
+    <arg name="odom_topic" value="$(arg truth_odom_topic)"/>
+    <arg name="pose_topic" value="$(arg truth_pose_topic)"/>
+    <arg name="child_frame" value="$(arg child_frame)"/>
+  </include>
+
+  <node if="$(arg depth_use_float_bridge)" pkg="clean_uav_core" type="depth_float_to_uint16.py" name="depth_float_to_uint16" output="screen">
+    <param name="input_depth_topic" value="$(arg depth_topic_raw)"/>
+    <param name="output_depth_topic" value="$(arg depth_topic_mm)"/>
+    <param name="min_m" value="$(arg grid_map_depth_filter_mindist)"/>
+    <param name="max_m" value="25.0"/>
+  </node>
+
+  <!-- 启动ego_planner -->
+  <node if="$(arg use_planner)" pkg="ego_planner" type="ego_planner_node" name="ego_planner_node" output="screen">
+    <remap from="/vins_estimator/extrinsic" to="$(arg grid_map_extrinsic_topic)"/>
+    <remap from="~odom_world" to="$(arg runtime_odom_topic)"/>
+    <!-- 将大量的内部话题重映射到约定的topic名称 -->
+    <remap from="~planning/bspline" to="$(arg planning_bspline_topic)"/>
+    <remap from="~planning/data_display" to="$(arg planning_data_display_topic)"/>
+    <remap from="~planning/broadcast_bspline_from_planner" to="$(arg planning_broadcast_topic)"/>
+    <remap from="~planning/broadcast_bspline_to_planner" to="$(arg planning_broadcast_topic)"/>
+    <remap from="/move_base_simple/goal" to="$(arg planner_goal_topic)"/>
+    <remap from="/traj_start_trigger" to="$(arg traj_trigger_topic)"/>
+    <remap from="~grid_map/odom" to="$(arg runtime_odom_topic)"/>
+    <remap from="~grid_map/cloud" to="$(arg cloud_topic)"/>
+    <remap from="~grid_map/pose" to="$(arg camera_pose_topic)"/>
+    <remap from="~grid_map/depth" to="$(arg depth_topic)"/>
+
+    <param name="fsm/flight_type" value="$(arg flight_type)" type="int"/>
+    <param name="fsm/thresh_replan_time" value="1.0" type="double"/>
+    <param name="fsm/thresh_no_replan_meter" value="1.0" type="double"/>
+    <param name="fsm/planning_horizon" value="7.5" type="double"/>
+    <param name="fsm/planning_horizen_time" value="3.0" type="double"/>
+    <param name="fsm/emergency_time" value="1.0" type="double"/>
+    <param name="fsm/realworld_experiment" value="$(arg planner_realworld_experiment)"/>
+    <param name="fsm/fail_safe" value="$(arg planner_fail_safe)"/>
+
+    <param name="fsm/waypoint_num" value="$(arg waypoint_num)" type="int"/>
+    <param name="fsm/waypoint0_x" value="$(arg target_x)" type="double"/>
+    <param name="fsm/waypoint0_y" value="$(arg target_y)" type="double"/>
+    <param name="fsm/waypoint0_z" value="$(arg target_z)" type="double"/>
+    <param name="fsm/waypoint1_x" value="$(arg waypoint1_x)" type="double"/>
+    <param name="fsm/waypoint1_y" value="$(arg waypoint1_y)" type="double"/>
+    <param name="fsm/waypoint1_z" value="$(arg waypoint1_z)" type="double"/>
+    <param name="fsm/waypoint2_x" value="$(arg waypoint2_x)" type="double"/>
+    <param name="fsm/waypoint2_y" value="$(arg waypoint2_y)" type="double"/>
+    <param name="fsm/waypoint2_z" value="$(arg waypoint2_z)" type="double"/>
+
+    <param name="grid_map/resolution" value="0.1"/>
+    <param name="grid_map/map_size_x" value="$(arg map_size_x)"/>
+    <param name="grid_map/map_size_y" value="$(arg map_size_y)"/>
+    <param name="grid_map/map_size_z" value="$(arg map_size_z)"/>
+    <param name="grid_map/local_update_range_x" value="15.0"/>
+    <param name="grid_map/local_update_range_y" value="15.0"/>
+    <param name="grid_map/local_update_range_z" value="4.5"/>
+    <param name="grid_map/obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
+    <param name="grid_map/local_map_margin" value="10"/>
+    <param name="grid_map/ground_height" value="$(arg grid_map_ground_height)"/>
+    <param name="grid_map/odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+    <param name="grid_map/cx" value="320.5"/>
+    <param name="grid_map/cy" value="240.5"/>
+    <param name="grid_map/fx" value="554.254691191187"/>
+    <param name="grid_map/fy" value="554.254691191187"/>
+    <param name="grid_map/use_depth_filter" value="true"/>
+    <param name="grid_map/depth_filter_tolerance" value="0.15"/>
+    <param name="grid_map/depth_filter_maxdist" value="25.0"/>
+    <param name="grid_map/depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+    <param name="grid_map/depth_filter_margin" value="2"/>
+    <param name="grid_map/k_depth_scaling_factor" value="1000.0"/>
+    <param name="grid_map/skip_pixel" value="2"/>
+    <param name="grid_map/p_hit" value="0.65"/>
+    <param name="grid_map/p_miss" value="0.35"/>
+    <param name="grid_map/p_min" value="0.12"/>
+    <param name="grid_map/p_max" value="0.90"/>
+    <param name="grid_map/p_occ" value="0.80"/>
+    <param name="grid_map/min_ray_length" value="0.1"/>
+    <param name="grid_map/max_ray_length" value="20.0"/>
+    <param name="grid_map/virtual_ceil_height" value="3.0"/>
+    <param name="grid_map/visualization_truncate_height" value="2.9"/>
+    <param name="grid_map/show_occ_time" value="false"/>
+    <param name="grid_map/pose_type" value="$(arg grid_map_pose_type)"/>
+    <param name="grid_map/frame_id" value="world"/>
+
+    <param name="manager/max_vel" value="$(arg planner_max_vel)" type="double"/>
+    <param name="manager/max_acc" value="$(arg planner_max_acc)" type="double"/>
+    <param name="manager/max_jerk" value="$(arg planner_max_jerk)" type="double"/>
+    <param name="manager/control_points_distance" value="0.4" type="double"/>
+    <param name="manager/feasibility_tolerance" value="0.05" type="double"/>
+    <param name="manager/planning_horizon" value="7.5" type="double"/>
+    <param name="manager/use_distinctive_trajs" value="$(arg planner_use_distinctive_trajs)" type="bool"/>
+    <param name="manager/drone_id" value="$(arg drone_id)"/>
+
+    <param name="optimization/lambda_smooth" value="1.0" type="double"/>
+    <param name="optimization/lambda_collision" value="0.5" type="double"/>
+    <param name="optimization/lambda_feasibility" value="0.1" type="double"/>
+    <param name="optimization/lambda_fitness" value="1.0" type="double"/>
+    <param name="optimization/dist0" value="0.5" type="double"/>
+    <param name="optimization/swarm_clearance" value="0.5" type="double"/>
+    <param name="optimization/max_vel" value="$(arg planner_max_vel)" type="double"/>
+    <param name="optimization/max_acc" value="$(arg planner_max_acc)" type="double"/>
+
+    <param name="bspline/limit_vel" value="$(arg bspline_limit_vel)" type="double"/>
+    <param name="bspline/limit_acc" value="$(arg bspline_limit_acc)" type="double"/>
+    <param name="bspline/limit_ratio" value="$(arg bspline_limit_ratio)" type="double"/>
+
+    <param name="prediction/obj_num" value="0" type="int"/>
+    <param name="prediction/lambda" value="1.0" type="double"/>
+    <param name="prediction/predict_rate" value="1.0" type="double"/>
+  </node>
+
+  <!-- 轨迹服务器，用于轨迹规划 -->
+  <node if="$(arg use_planner)" pkg="ego_planner" type="traj_server" name="traj_server" output="screen">
+    <remap from="position_cmd" to="$(arg position_cmd_topic)"/>
+    <remap from="/position_cmd" to="$(arg position_cmd_topic)"/>
+    <remap from="~planning/bspline" to="$(arg planning_bspline_topic)"/>
+    <param name="traj_server/time_forward" value="1.0" type="double"/>
+  </node>
+
+  <!-- 发布目标 -->
+  <node if="$(arg use_goal_publisher)" pkg="clean_uav_core" type="goal_point_publisher.py" name="goal_point_publisher" output="screen">
+    <param name="topic" value="$(arg goal_topic)"/>
+    <param name="frame_id" value="$(arg goal_frame)"/>
+    <param name="x" value="$(arg target_x)"/>
+    <param name="y" value="$(arg target_y)"/>
+    <param name="z" value="$(arg target_z)"/>
+    <param name="delay" value="$(arg goal_delay)"/>
+    <param name="repeat" value="$(arg goal_repeat)"/>
+    <param name="rate" value="$(arg goal_rate)"/>
+  </node>
+
+  <!-- 任务进度监控 -->
+  <node if="$(arg use_mission_monitor)" pkg="clean_uav_core" type="mission_progress_monitor.py" name="mission_progress_monitor" output="screen">
+    <param name="odom_topic" value="$(arg runtime_odom_topic)"/>
+    <param name="status_topic" value="$(arg mission_status_topic)"/>
+    <param name="mission_name" value="phase1_mission"/>
+    <param name="waypoint_num" value="$(arg waypoint_num)"/>
+    <param name="waypoint0_x" value="$(arg target_x)"/>
+    <param name="waypoint0_y" value="$(arg target_y)"/>
+    <param name="waypoint0_z" value="$(arg target_z)"/>
+    <param name="waypoint1_x" value="$(arg waypoint1_x)"/>
+    <param name="waypoint1_y" value="$(arg waypoint1_y)"/>
+    <param name="waypoint1_z" value="$(arg waypoint1_z)"/>
+    <param name="waypoint2_x" value="$(arg waypoint2_x)"/>
+    <param name="waypoint2_y" value="$(arg waypoint2_y)"/>
+    <param name="waypoint2_z" value="$(arg waypoint2_z)"/>
+    <param name="reach_radius" value="$(arg reach_radius)"/>
+    <param name="hold_time" value="$(arg hold_time)"/>
+    <param name="exit_grace_time" value="$(arg monitor_exit_grace_time)"/>
+    <param name="use_cmd_reach_fallback" value="$(arg monitor_use_cmd_reach_fallback)"/>
+    <param name="cmd_topic" value="$(arg monitor_cmd_topic)"/>
+    <param name="cmd_reach_radius" value="$(arg monitor_cmd_reach_radius)"/>
+    <param name="use_planner_activity_fallback" value="$(arg monitor_use_planner_activity_fallback)"/>
+    <param name="planner_bspline_topic" value="$(arg monitor_planner_bspline_topic)"/>
+    <param name="force_complete_timeout" value="$(arg monitor_force_complete_timeout)"/>
+  </node>
+
+  <node if="$(arg use_direct_traj_trigger)" pkg="clean_uav_core" type="traj_start_trigger.py" name="traj_start_trigger" output="screen">
+    <param name="odom_topic" value="$(arg runtime_odom_topic)"/>
+    <param name="trigger_topic" value="$(arg traj_trigger_topic)"/>
+    <param name="frame_id" value="world"/>
+    <param name="delay" value="$(arg traj_trigger_delay)"/>
+    <param name="repeat" value="$(arg traj_trigger_repeat)"/>
+    <param name="rate" value="$(arg traj_trigger_rate)"/>
+  </node>
+
+  <node if="$(arg use_px4ctrl)" pkg="px4ctrl" type="px4ctrl_node" name="px4ctrl" output="screen">
+    <remap from="/mavros/state" to="$(arg mavros_state_topic)"/>
+    <remap from="/mavros/extended_state" to="$(arg mavros_extended_state_topic)"/>
+    <remap from="/mavros/imu/data" to="$(arg mavros_imu_topic)"/>
+    <remap from="/mavros/rc/in" to="$(arg mavros_rc_topic)"/>
+    <remap from="/mavros/battery" to="$(arg mavros_battery_topic)"/>
+    <remap from="/mavros/setpoint_raw/attitude" to="$(arg mavros_attitude_cmd_topic)"/>
+    <remap from="/mavros/set_mode" to="$(arg mavros_set_mode_service)"/>
+    <remap from="/mavros/cmd/arming" to="$(arg mavros_arm_service)"/>
+    <remap from="/mavros/cmd/command" to="$(arg mavros_command_service)"/>
+    <remap from="/traj_start_trigger" to="$(arg traj_trigger_topic)"/>
+    <remap from="~odom" to="$(arg runtime_odom_topic)"/>
+    <remap from="~cmd" to="$(arg position_cmd_topic)"/>
+    <remap from="~takeoff_land" to="$(arg takeoff_topic)"/>
+    <rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_fpv.yaml"/>
+    <rosparam command="load" file="$(find clean_uav_core)/config/phase1_px4ctrl_no_rc.yaml"/>
+  </node>
+
+  <node if="$(arg use_takeoff_trigger)" pkg="clean_uav_core" type="takeoff_land_trigger.py" name="phase1_takeoff_trigger" output="screen">
+    <param name="command" value="takeoff"/>
+    <param name="topic" value="$(arg takeoff_topic)"/>
+    <param name="delay" value="$(arg takeoff_delay)"/>
+    <param name="repeat" value="6"/>
+    <param name="rate" value="2.0"/>
+  </node>
+</launch>

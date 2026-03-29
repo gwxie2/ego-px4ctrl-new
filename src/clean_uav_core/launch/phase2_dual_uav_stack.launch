@@ -1,0 +1,201 @@
+<launch>
+  <arg name="uav0_model" default="iris_0"/>
+  <arg name="uav1_model" default="iris_1"/>
+
+  <arg name="takeoff_delay" default="8.0"/>
+  <arg name="traj_trigger_delay" default="20.0"/>
+  <arg name="traj_trigger_repeat" default="1"/>
+  <arg name="traj_trigger_rate" default="3.0"/>
+  <arg name="enable_dual_trigger" default="true"/>
+  <arg name="planner_max_vel" default="0.6"/>
+  <arg name="planner_max_acc" default="3.0"/>
+  <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="planner_flight_type" default="2"/>
+  <arg name="planner_realworld_experiment" default="true"/>
+  <arg name="planner_fail_safe" default="true"/>
+  <arg name="grid_map_ground_height" default="-0.01"/>
+  <arg name="grid_map_odom_depth_timeout" default="1.0"/>
+  <arg name="grid_map_depth_filter_mindist" default="0.2"/>
+  <arg name="grid_map_obstacles_inflation" default="0.099"/>
+  <arg name="map_size_x" default="20.0"/>
+  <arg name="map_size_y" default="20.0"/>
+  <arg name="map_size_z" default="5.0"/>
+  <arg name="bspline_limit_vel" default="2.0"/>
+  <arg name="bspline_limit_acc" default="3.0"/>
+  <arg name="bspline_limit_ratio" default="1.1"/>
+  <arg name="use_rviz" default="true"/>
+  <arg name="rviz_config" default="$(dirname)/../rviz/phase2_ego_obstacle_debug.rviz"/>
+  <arg name="planning_broadcast_topic" default="/swarm/broadcast_bspline"/>
+  <arg name="use_truth_odom" default="true"/>
+
+  <arg name="uav0_odom_topic" default="/uav0/truth_odom"/>
+  <arg name="uav0_pose_topic" default="/uav0/truth_pose"/>
+  <arg name="uav1_odom_topic" default="/uav1/truth_odom"/>
+  <arg name="uav1_pose_topic" default="/uav1/truth_pose"/>
+
+  <arg name="uav0_target_x" default="-2.0"/>
+  <arg name="uav0_target_y" default="3.5"/>
+  <arg name="uav0_target_z" default="1.9"/>
+
+  <arg name="uav1_target_x" default="1.0"/>
+  <arg name="uav1_target_y" default="6.5"/>
+  <arg name="uav1_target_z" default="1.9"/>
+
+  <group ns="uav0">
+    <include file="$(find clean_uav_core)/launch/phase1_minimal_demo.launch">
+      <arg name="drone_id" value="0"/>
+      <arg name="model_name" value="$(arg uav0_model)"/>
+      <arg name="truth_odom_topic" value="$(arg uav0_odom_topic)"/>
+      <arg name="runtime_odom_topic" value="$(arg uav0_odom_topic)"/>
+      <arg name="truth_pose_topic" value="$(arg uav0_pose_topic)"/>
+      <arg name="cloud_topic" value="unused_cloud"/>
+      <arg name="camera_pose_topic" value="$(arg uav0_pose_topic)"/>
+      <arg name="depth_use_float_bridge" value="true"/>
+      <arg name="depth_topic_raw" value="/iris_0/realsense/depth_camera/depth/image_raw"/>
+      <arg name="planner_goal_topic" value="goal"/>
+      <arg name="planning_bspline_topic" value="planning/bspline"/>
+      <arg name="planning_data_display_topic" value="planning/data_display"/>
+      <arg name="planning_broadcast_topic" value="$(arg planning_broadcast_topic)"/>
+      <arg name="planner_realworld_experiment" value="$(arg planner_realworld_experiment)"/>
+      <arg name="flight_type" value="$(arg planner_flight_type)"/>
+      <arg name="planner_use_distinctive_trajs" value="false"/>
+      <arg name="planner_fail_safe" value="$(arg planner_fail_safe)"/>
+      <arg name="grid_map_ground_height" value="$(arg grid_map_ground_height)"/>
+      <arg name="grid_map_odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+      <arg name="grid_map_depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+      <arg name="grid_map_obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
+      <arg name="grid_map_pose_type" value="2"/>
+      <arg name="grid_map_extrinsic_topic" value="/uav0/vins_estimator/extrinsic"/>
+      <arg name="map_size_x" value="$(arg map_size_x)"/>
+      <arg name="map_size_y" value="$(arg map_size_y)"/>
+      <arg name="map_size_z" value="$(arg map_size_z)"/>
+      <arg name="planner_max_vel" value="$(arg planner_max_vel)"/>
+      <arg name="planner_max_acc" value="$(arg planner_max_acc)"/>
+      <arg name="planner_max_jerk" value="$(arg planner_max_jerk)"/>
+      <arg name="bspline_limit_vel" value="$(arg bspline_limit_vel)"/>
+      <arg name="bspline_limit_acc" value="$(arg bspline_limit_acc)"/>
+      <arg name="bspline_limit_ratio" value="$(arg bspline_limit_ratio)"/>
+      <arg name="position_cmd_topic" value="position_cmd"/>
+      <arg name="mission_status_topic" value="mission_status"/>
+      <arg name="takeoff_topic" value="px4ctrl/takeoff_land"/>
+      <arg name="traj_trigger_topic" value="traj_start_trigger"/>
+      <arg name="mavros_state_topic" value="/iris_0/mavros/state"/>
+      <arg name="mavros_extended_state_topic" value="/iris_0/mavros/extended_state"/>
+      <arg name="mavros_imu_topic" value="/iris_0/mavros/imu/data"/>
+      <arg name="mavros_rc_topic" value="/iris_0/mavros/rc/in"/>
+      <arg name="mavros_battery_topic" value="/iris_0/mavros/battery"/>
+      <arg name="mavros_attitude_cmd_topic" value="/iris_0/mavros/setpoint_raw/attitude"/>
+      <arg name="mavros_set_mode_service" value="/iris_0/mavros/set_mode"/>
+      <arg name="mavros_arm_service" value="/iris_0/mavros/cmd/arming"/>
+      <arg name="mavros_command_service" value="/iris_0/mavros/cmd/command"/>
+      <arg name="waypoint_num" value="1"/>
+      <arg name="target_x" value="$(arg uav0_target_x)"/>
+      <arg name="target_y" value="$(arg uav0_target_y)"/>
+      <arg name="target_z" value="$(arg uav0_target_z)"/>
+      <arg name="waypoint1_x" value="5.0"/>
+      <arg name="waypoint1_y" value="1.5"/>
+      <arg name="waypoint1_z" value="1.0"/>
+      <arg name="waypoint2_x" value="2.5"/>
+      <arg name="waypoint2_y" value="1.5"/>
+      <arg name="waypoint2_z" value="1.0"/>
+      <arg name="use_mission_monitor" value="true"/>
+      <arg name="use_direct_traj_trigger" value="false"/>
+      <arg name="reach_radius" value="0.8"/>
+      <arg name="hold_time" value="0.4"/>
+      <arg name="monitor_use_cmd_reach_fallback" value="true"/>
+      <arg name="monitor_cmd_topic" value="position_cmd"/>
+      <arg name="monitor_cmd_reach_radius" value="0.8"/>
+      <arg name="monitor_use_planner_activity_fallback" value="false"/>
+      <arg name="monitor_planner_bspline_topic" value="planning/bspline"/>
+      <arg name="monitor_force_complete_timeout" value="30.0"/>
+      <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+      <arg name="use_truth_odom" value="$(arg use_truth_odom)"/>
+    </include>
+  </group>
+
+  <group ns="uav1">
+    <include file="$(find clean_uav_core)/launch/phase1_minimal_demo.launch">
+      <arg name="drone_id" value="1"/>
+      <arg name="model_name" value="$(arg uav1_model)"/>
+      <arg name="truth_odom_topic" value="$(arg uav1_odom_topic)"/>
+      <arg name="runtime_odom_topic" value="$(arg uav1_odom_topic)"/>
+      <arg name="truth_pose_topic" value="$(arg uav1_pose_topic)"/>
+      <arg name="cloud_topic" value="unused_cloud"/>
+      <arg name="camera_pose_topic" value="$(arg uav1_pose_topic)"/>
+      <arg name="depth_use_float_bridge" value="true"/>
+      <arg name="depth_topic_raw" value="/iris_1/realsense/depth_camera/depth/image_raw"/>
+      <arg name="planner_goal_topic" value="goal"/>
+      <arg name="planning_bspline_topic" value="planning/bspline"/>
+      <arg name="planning_data_display_topic" value="planning/data_display"/>
+      <arg name="planning_broadcast_topic" value="$(arg planning_broadcast_topic)"/>
+      <arg name="planner_realworld_experiment" value="$(arg planner_realworld_experiment)"/>
+      <arg name="flight_type" value="$(arg planner_flight_type)"/>
+      <arg name="planner_use_distinctive_trajs" value="false"/>
+      <arg name="planner_fail_safe" value="$(arg planner_fail_safe)"/>
+      <arg name="grid_map_ground_height" value="$(arg grid_map_ground_height)"/>
+      <arg name="grid_map_odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+      <arg name="grid_map_depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+      <arg name="grid_map_obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
+      <arg name="grid_map_pose_type" value="2"/>
+      <arg name="grid_map_extrinsic_topic" value="/uav1/vins_estimator/extrinsic"/>
+      <arg name="map_size_x" value="$(arg map_size_x)"/>
+      <arg name="map_size_y" value="$(arg map_size_y)"/>
+      <arg name="map_size_z" value="$(arg map_size_z)"/>
+      <arg name="planner_max_vel" value="$(arg planner_max_vel)"/>
+      <arg name="planner_max_acc" value="$(arg planner_max_acc)"/>
+      <arg name="planner_max_jerk" value="$(arg planner_max_jerk)"/>
+      <arg name="bspline_limit_vel" value="$(arg bspline_limit_vel)"/>
+      <arg name="bspline_limit_acc" value="$(arg bspline_limit_acc)"/>
+      <arg name="bspline_limit_ratio" value="$(arg bspline_limit_ratio)"/>
+      <arg name="position_cmd_topic" value="position_cmd"/>
+      <arg name="mission_status_topic" value="mission_status"/>
+      <arg name="takeoff_topic" value="px4ctrl/takeoff_land"/>
+      <arg name="traj_trigger_topic" value="traj_start_trigger"/>
+      <arg name="mavros_state_topic" value="/iris_1/mavros/state"/>
+      <arg name="mavros_extended_state_topic" value="/iris_1/mavros/extended_state"/>
+      <arg name="mavros_imu_topic" value="/iris_1/mavros/imu/data"/>
+      <arg name="mavros_rc_topic" value="/iris_1/mavros/rc/in"/>
+      <arg name="mavros_battery_topic" value="/iris_1/mavros/battery"/>
+      <arg name="mavros_attitude_cmd_topic" value="/iris_1/mavros/setpoint_raw/attitude"/>
+      <arg name="mavros_set_mode_service" value="/iris_1/mavros/set_mode"/>
+      <arg name="mavros_arm_service" value="/iris_1/mavros/cmd/arming"/>
+      <arg name="mavros_command_service" value="/iris_1/mavros/cmd/command"/>
+      <arg name="waypoint_num" value="1"/>
+      <arg name="target_x" value="$(arg uav1_target_x)"/>
+      <arg name="target_y" value="$(arg uav1_target_y)"/>
+      <arg name="target_z" value="$(arg uav1_target_z)"/>
+      <arg name="waypoint1_x" value="5.0"/>
+      <arg name="waypoint1_y" value="4.5"/>
+      <arg name="waypoint1_z" value="1.0"/>
+      <arg name="waypoint2_x" value="2.5"/>
+      <arg name="waypoint2_y" value="4.5"/>
+      <arg name="waypoint2_z" value="1.0"/>
+      <arg name="use_mission_monitor" value="true"/>
+      <arg name="use_direct_traj_trigger" value="false"/>
+      <arg name="reach_radius" value="0.8"/>
+      <arg name="hold_time" value="0.4"/>
+      <arg name="monitor_use_cmd_reach_fallback" value="true"/>
+      <arg name="monitor_cmd_topic" value="position_cmd"/>
+      <arg name="monitor_cmd_reach_radius" value="0.8"/>
+      <arg name="monitor_use_planner_activity_fallback" value="false"/>
+      <arg name="monitor_planner_bspline_topic" value="planning/bspline"/>
+      <arg name="monitor_force_complete_timeout" value="30.0"/>
+      <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+      <arg name="use_truth_odom" value="$(arg use_truth_odom)"/>
+    </include>
+  </group>
+
+  <node if="$(arg enable_dual_trigger)" pkg="clean_uav_core" type="dual_traj_start_trigger.py" name="phase2_dual_traj_start_trigger" output="screen">
+    <param name="uav0_odom_topic" value="$(arg uav0_odom_topic)"/>
+    <param name="uav1_odom_topic" value="$(arg uav1_odom_topic)"/>
+    <param name="uav0_trigger_topic" value="/uav0/traj_start_trigger"/>
+    <param name="uav1_trigger_topic" value="/uav1/traj_start_trigger"/>
+    <param name="delay" value="$(arg traj_trigger_delay)"/>
+    <param name="repeat" value="$(arg traj_trigger_repeat)"/>
+    <param name="rate" value="$(arg traj_trigger_rate)"/>
+    <param name="wait_odom_timeout" value="30.0"/>
+    <param name="frame_id" value="world"/>
+  </node>
+
+  <node if="$(arg use_rviz)" pkg="rviz" type="rviz" name="phase2_ego_rviz" args="-d $(arg rviz_config)" output="screen"/>
+</launch>
