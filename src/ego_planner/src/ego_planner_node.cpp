@@ -1,19 +1,37 @@
 #include <ros/ros.h>
 #include <visualization_msgs/Marker.h>
 
+#include <iostream>
+
 #include <plan_manage/ego_replan_fsm.h>
 
 using namespace ego_planner;
 
 int main(int argc, char **argv)
 {
-
+  std::cerr << "[ego_planner_node] entering main" << std::endl;
   ros::init(argc, argv, "ego_planner_node");
   ros::NodeHandle nh("~");
+  std::cerr << "[ego_planner_node] ros node initialized" << std::endl;
 
   EGOReplanFSM rebo_replan;
 
-  rebo_replan.init(nh);
+  try
+  {
+    rebo_replan.init(nh);
+  }
+  catch (const std::exception &exception)
+  {
+    std::cerr << "[ego_planner_node] init exception: " << exception.what() << std::endl;
+    throw;
+  }
+  catch (...)
+  {
+    std::cerr << "[ego_planner_node] init exception: unknown" << std::endl;
+    throw;
+  }
+
+  std::cerr << "[ego_planner_node] init completed" << std::endl;
 
   // ros::Duration(1.0).sleep();
   ros::spin();

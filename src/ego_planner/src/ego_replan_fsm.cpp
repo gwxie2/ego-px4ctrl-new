@@ -34,11 +34,17 @@ namespace ego_planner
     }
 
     /* initialize main modules */
+    ROS_WARN("[ego_planner] init: creating visualization");
     visualization_.reset(new PlanningVisualization(nh));
+    ROS_WARN("[ego_planner] init: creating planner manager");
     planner_manager_.reset(new EGOPlannerManager);
+    ROS_WARN("[ego_planner] init: initializing planner modules");
     planner_manager_->initPlanModules(nh, visualization_);
+    ROS_WARN("[ego_planner] init: binding optimizer swarm trajectory buffer");
     planner_manager_->deliverTrajToOptimizer(); // store trajectories
+    ROS_WARN("[ego_planner] init: setting optimizer drone id");
     planner_manager_->setDroneIdtoOpt();
+    ROS_WARN("[ego_planner] init: planner manager ready");
 
     /* callback */
     exec_timer_ = nh.createTimer(ros::Duration(0.01), &EGOReplanFSM::execFSMCallback, this);
@@ -476,13 +482,23 @@ namespace ego_planner
 
   void EGOReplanFSM::changeFSMExecState(FSM_EXEC_STATE new_state, string pos_call)
   {
+    static string state_str[8] = {"INIT", "WAIT_TARGET", "GEN_NEW_TRAJ", "REPLAN_TRAJ", "EXEC_TRAJ", "EMERGENCY_STOP", "SEQUENTIAL_START"};
 
     if (new_state == exec_state_)
+    {
       continously_called_times_++;
+      ROS_INFO_THROTTLE(
+          1.0,
+          "[%s]: stay in %s (x%d)",
+          pos_call.c_str(),
+          state_str[int(new_state)].c_str(),
+          continously_called_times_);
+      exec_state_ = new_state;
+      return;
+    }
     else
       continously_called_times_ = 1;
 
-    static string state_str[8] = {"INIT", "WAIT_TARGET", "GEN_NEW_TRAJ", "REPLAN_TRAJ", "EXEC_TRAJ", "EMERGENCY_STOP", "SEQUENTIAL_START"};
     int pre_s = int(exec_state_);
     exec_state_ = new_state;
     cout << "[" + pos_call + "]: from " + state_str[pre_s] + " to " + state_str[int(new_state)] << endl;
@@ -837,7 +853,17 @@ namespace ego_planner
         planner_manager_->reboundReplan(start_pt_, start_vel_, start_acc_, local_target_pt_, local_target_vel_, (have_new_target_ || flag_use_poly_init), flag_randomPolyTraj);
     have_new_target_ = false;
 
-    cout << "refine_success=" << plan_and_refine_success << endl;
+    if (plan_and_refine_success)
+    {
+      cout << "refine_success=1" << endl;
+    }
+    else
+    {
+      ROS_INFO_THROTTLE(
+          1.0,
+          "[drone %d] refine_success=0",
+          planner_manager_->pp_.drone_id);
+    }
 
     if (plan_and_refine_success)
     {

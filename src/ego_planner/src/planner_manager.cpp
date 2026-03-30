@@ -50,18 +50,24 @@ namespace ego_planner
                                         Eigen::Vector3d start_acc, Eigen::Vector3d local_target_pt,
                                         Eigen::Vector3d local_target_vel, bool flag_polyInit, bool flag_randomPolyTraj)
   {
+    const double dist_to_local_target = (start_pt - local_target_pt).norm();
+
+    if (dist_to_local_target < 0.2)
+    {
+      ROS_WARN_THROTTLE(
+          1.0,
+          "[drone %d] Close to goal, skip rebound replan. dist=%.3f",
+          pp_.drone_id,
+          dist_to_local_target);
+      continous_failures_count_++;
+      return false;
+    }
+
     static int count = 0;
     printf("\033[47;30m\n[drone %d replan %d]==============================================\033[0m\n", pp_.drone_id, count++);
     // cout.precision(3);
     // cout << "start: " << start_pt.transpose() << ", " << start_vel.transpose() << "\ngoal:" << local_target_pt.transpose() << ", " << local_target_vel.transpose()
     //      << endl;
-
-    if ((start_pt - local_target_pt).norm() < 0.2)
-    {
-      cout << "Close to goal" << endl;
-      continous_failures_count_++;
-      return false;
-    }
 
     bspline_optimizer_->setLocalTargetPt( local_target_pt );
 

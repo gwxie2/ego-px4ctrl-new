@@ -256,15 +256,15 @@
   </node>
 
   <node if="$(arg use_px4ctrl)" pkg="px4ctrl" type="px4ctrl_node" name="px4ctrl" output="screen">
-    <remap from="/mavros/state" to="$(arg mavros_state_topic)"/>
-    <remap from="/mavros/extended_state" to="$(arg mavros_extended_state_topic)"/>
-    <remap from="/mavros/imu/data" to="$(arg mavros_imu_topic)"/>
-    <remap from="/mavros/rc/in" to="$(arg mavros_rc_topic)"/>
-    <remap from="/mavros/battery" to="$(arg mavros_battery_topic)"/>
-    <remap from="/mavros/setpoint_raw/attitude" to="$(arg mavros_attitude_cmd_topic)"/>
-    <remap from="/mavros/set_mode" to="$(arg mavros_set_mode_service)"/>
-    <remap from="/mavros/cmd/arming" to="$(arg mavros_arm_service)"/>
-    <remap from="/mavros/cmd/command" to="$(arg mavros_command_service)"/>
+    <remap from="mavros/state" to="$(arg mavros_state_topic)"/>
+    <remap from="mavros/extended_state" to="$(arg mavros_extended_state_topic)"/>
+    <remap from="mavros/imu/data" to="$(arg mavros_imu_topic)"/>
+    <remap from="mavros/rc/in" to="$(arg mavros_rc_topic)"/>
+    <remap from="mavros/battery" to="$(arg mavros_battery_topic)"/>
+    <remap from="mavros/setpoint_raw/attitude" to="$(arg mavros_attitude_cmd_topic)"/>
+    <remap from="mavros/set_mode" to="$(arg mavros_set_mode_service)"/>
+    <remap from="mavros/cmd/arming" to="$(arg mavros_arm_service)"/>
+    <remap from="mavros/cmd/command" to="$(arg mavros_command_service)"/>
     <remap from="/traj_start_trigger" to="$(arg traj_trigger_topic)"/>
     <remap from="~odom" to="$(arg runtime_odom_topic)"/>
     <remap from="~cmd" to="$(arg position_cmd_topic)"/>

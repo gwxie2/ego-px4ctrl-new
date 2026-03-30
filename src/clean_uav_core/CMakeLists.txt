@@ -175,9 +175,14 @@ catkin_install_python(PROGRAMS
   scripts/multi_vins_bridge.py
   scripts/odom_pose_adapter.py
   scripts/px4_param_bootstrap.py
+  scripts/swarm_dynamic_commander.py
+  scripts/swarm_launch_generator.py
+  scripts/swarm_traj_trigger.py
   scripts/traj_start_trigger.py
   scripts/truth_odom_adapter.py
   scripts/takeoff_land_trigger.py
+  scripts/wait_for_takeoff_and_exec.py
+  scripts/wait_for_model_and_exec.py
   scripts/vins_drift_monitor.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

@@ -1,0 +1,83 @@
+<launch>
+  <arg name="drone_id"/>
+  <arg name="sim_ns" default="$(eval 'iris_%s' % arg('drone_id'))"/>
+
+  <arg name="init_x"/>
+  <arg name="init_y"/>
+  <arg name="init_z"/>
+  <arg name="init_yaw" default="0.0"/>
+
+  <arg name="vehicle" default="iris"/>
+  <arg name="vehicle_sdf" default="iris_realsense_camera"/>
+  <arg name="est" default="ekf2"/>
+  <arg name="interactive" default="true"/>
+
+  <arg name="mavlink_udp_port" default="$(eval 18570 + int(arg('drone_id')))"/>
+  <arg name="mavlink_tcp_port" default="$(eval 4560 + int(arg('drone_id')))"/>
+  <arg name="udp_gimbal_port" default="$(eval 13030 + int(arg('drone_id')))"/>
+  <arg name="fcu_url" default="$(eval 'udp://:%d@localhost:%d' % (24540 + int(arg('drone_id')), 34580 + int(arg('drone_id'))))"/>
+  <arg name="gcs_url" default="$(eval 'udp://@localhost:%d' % (14550 + int(arg('drone_id'))))"/>
+  <arg name="tgt_system" default="$(eval 1 + int(arg('drone_id')))"/>
+  <arg name="tgt_component" default="1"/>
+  <arg name="mavros_ready_timeout" default="45.0"/>
+  <arg name="mavros_stable_duration" default="2.0"/>
+  <arg name="mavros_post_ready_delay" default="2.0"/>
+
+  <group ns="$(arg sim_ns)">
+    <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
+      <arg name="x" value="$(arg init_x)"/>
+      <arg name="y" value="$(arg init_y)"/>
+      <arg name="z" value="$(arg init_z)"/>
+      <arg name="R" value="0"/>
+      <arg name="P" value="0"/>
+      <arg name="Y" value="$(arg init_yaw)"/>
+      <arg name="vehicle" value="$(arg vehicle)"/>
+      <arg name="sdf" value="$(arg vehicle_sdf)"/>
+      <arg name="est" value="$(arg est)"/>
+      <arg name="interactive" value="$(arg interactive)"/>
+      <arg name="mavlink_udp_port" value="$(arg mavlink_udp_port)"/>
+      <arg name="mavlink_tcp_port" value="$(arg mavlink_tcp_port)"/>
+      <arg name="udp_gimbal_port" value="$(arg udp_gimbal_port)"/>
+      <arg name="ID" value="$(arg drone_id)"/>
+      <arg name="ID_in_group" value="$(arg drone_id)"/>
+    </include>
+
+    <node
+      pkg="mavros"
+      type="mavros_node"
+      name="mavros"
+      required="true"
+      clear_params="true"
+      output="screen"
+      launch-prefix="$(find clean_uav_core)/scripts/wait_for_model_and_exec.py --model-name $(arg sim_ns) --timeout $(arg mavros_ready_timeout) --stable-duration $(arg mavros_stable_duration) --post-ready-delay $(arg mavros_post_ready_delay) --">
+      <env name="ROSCONSOLE_CONFIG_FILE" value="$(find clean_uav_core)/config/mavros_rosconsole.config"/>
+      <param name="fcu_url" value="$(arg fcu_url)"/>
+      <param name="gcs_url" value="$(arg gcs_url)"/>
+      <param name="target_system_id" value="$(arg tgt_system)"/>
+      <param name="target_component_id" value="$(arg tgt_component)"/>
+      <param name="fcu_protocol" value="v2.0"/>
+      <rosparam command="load" file="$(find mavros)/launch/px4_pluginlists.yaml"/>
+      <rosparam command="load" file="$(find mavros)/launch/px4_config.yaml"/>
+    </node>
+
+    <node pkg="clean_uav_core" type="px4_param_bootstrap.py" name="px4_param_bootstrap" output="screen">
+      <param name="service_name" value="mavros/param/set"/>
+      <param name="get_service_name" value="mavros/param/get"/>
+      <param name="pull_service_name" value="mavros/param/pull"/>
+      <param name="param_name" value="COM_RCL_EXCEPT"/>
+      <param name="integer_value" value="4"/>
+      <param name="retry_count" value="20"/>
+      <param name="retry_interval" value="1.0"/>
+    </node>
+
+    <node pkg="clean_uav_core" type="px4_param_bootstrap.py" name="px4_param_bootstrap_rc_mode" output="screen">
+      <param name="service_name" value="mavros/param/set"/>
+      <param name="get_service_name" value="mavros/param/get"/>
+      <param name="pull_service_name" value="mavros/param/pull"/>
+      <param name="param_name" value="COM_RC_IN_MODE"/>
+      <param name="integer_value" value="4"/>
+      <param name="retry_count" value="20"/>
+      <param name="retry_interval" value="1.0"/>
+    </node>
+  </group>
+</launch>

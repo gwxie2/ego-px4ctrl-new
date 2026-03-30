@@ -1,0 +1,210 @@
+<launch>
+  <arg name="drone_id"/>
+  <arg name="drone_ns" default="$(eval 'drone_%s' % arg('drone_id'))"/>
+  <arg name="sim_ns" default="$(eval 'iris_%s' % arg('drone_id'))"/>
+
+  <arg name="init_x"/>
+  <arg name="init_y"/>
+  <arg name="init_z"/>
+
+  <arg name="target_x"/>
+  <arg name="target_y"/>
+  <arg name="target_z"/>
+
+  <arg name="child_frame_id" default="base_link"/>
+  <arg name="world_frame" default="world"/>
+  <arg name="enable_vins" default="false"/>
+  <arg name="use_truth_odom_runtime" default="true"/>
+  <arg name="truth_odom_topic" default="truth_odom"/>
+  <arg name="truth_pose_topic" default="truth_pose"/>
+  <arg name="base_odom_input_topic" default="$(eval 'truth_odom' if str(arg('use_truth_odom_runtime')).lower() in ['true', '1', 'yes'] else '/%s/mavros/local_position/odom' % arg('sim_ns'))"/>
+  <arg name="camera_pose_topic" default="pose"/>
+  <arg name="planner_extrinsic_topic" default="vins_estimator/extrinsic"/>
+  <arg name="planner_goal_topic" default="$(eval '/%s/goal' % arg('drone_ns'))"/>
+  <arg name="planning_broadcast_topic" default="/swarm/broadcast_bspline"/>
+  <arg name="depth_topic_raw" default="$(eval '/%s/realsense/depth_camera/depth/image_raw' % arg('sim_ns'))"/>
+
+  <arg name="planner_max_vel" default="1.2"/>
+  <arg name="planner_max_acc" default="2.8"/>
+  <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="planner_fail_safe" default="true"/>
+  <arg name="planner_flight_type" default="1"/>
+  <arg name="planner_realworld_experiment" default="false"/>
+
+  <arg name="map_size_x" default="80.0"/>
+  <arg name="map_size_y" default="80.0"/>
+  <arg name="map_size_z" default="5.0"/>
+  <arg name="grid_map_ground_height" default="-0.01"/>
+  <arg name="grid_map_odom_depth_timeout" default="2.0"/>
+  <arg name="grid_map_depth_filter_mindist" default="0.1"/>
+  <arg name="grid_map_obstacles_inflation" default="0.45"/>
+
+  <arg name="hover_percent" default="0.58"/>
+  <arg name="mass" default="1.2"/>
+  <arg name="takeoff_delay" default="8.0"/>
+  <arg name="planner_start_z_threshold" default="0.8"/>
+  <arg name="planner_start_stable_duration" default="1.5"/>
+  <arg name="planner_start_timeout" default="60.0"/>
+  <arg name="planner_post_takeoff_delay" default="1.0"/>
+
+  <group ns="$(arg drone_ns)">
+    <include file="$(find clean_uav_core)/launch/phase1_truth_odom.launch">
+      <arg name="model_name" value="$(arg sim_ns)"/>
+      <arg name="odom_topic" value="$(arg truth_odom_topic)"/>
+      <arg name="pose_topic" value="$(arg truth_pose_topic)"/>
+      <arg name="world_frame" value="$(arg world_frame)"/>
+      <arg name="child_frame" value="$(arg child_frame_id)"/>
+    </include>
+
+    <group if="$(arg enable_vins)">
+      <node pkg="vins" type="vins_node" name="vins_estimator" output="screen" args="$(find vins)/../config/xtdrone_sitl/iris_$(arg drone_id)_px4_sitl_config.yaml"/>
+    </group>
+
+    <node pkg="clean_uav_core" type="depth_float_to_uint16.py" name="depth_float_to_uint16" output="screen">
+      <param name="input_depth_topic" value="$(arg depth_topic_raw)"/>
+      <param name="output_depth_topic" value="depth_output"/>
+      <param name="min_m" value="$(arg grid_map_depth_filter_mindist)"/>
+      <param name="max_m" value="25.0"/>
+    </node>
+
+    <node pkg="clean_uav_core" type="odom_pose_adapter.py" name="odom_adapter" output="screen">
+      <param name="input_odom_topic" value="$(arg base_odom_input_topic)"/>
+      <param name="output_odom_topic" value="odom"/>
+      <param name="output_pose_topic" value="pose"/>
+      <param name="frame_id_override" value="$(arg world_frame)"/>
+      <param name="offset_x" value="$(eval 0.0 if str(arg('use_truth_odom_runtime')).lower() in ['true', '1', 'yes'] else float(arg('init_x')))"/>
+      <param name="offset_y" value="$(eval 0.0 if str(arg('use_truth_odom_runtime')).lower() in ['true', '1', 'yes'] else float(arg('init_y')))"/>
+      <param name="offset_z" value="$(eval 0.0 if str(arg('use_truth_odom_runtime')).lower() in ['true', '1', 'yes'] else float(arg('init_z')))"/>
+    </node>
+
+        <node pkg="ego_planner" type="ego_planner_node" name="ego_planner" output="screen"
+          launch-prefix="$(find clean_uav_core)/scripts/wait_for_takeoff_and_exec.py --odom-topic odom --z-threshold $(arg planner_start_z_threshold) --stable-duration $(arg planner_start_stable_duration) --timeout $(arg planner_start_timeout) --post-ready-delay $(arg planner_post_takeoff_delay) --">
+      <remap from="~odom_world" to="odom"/>
+      <remap from="/move_base_simple/goal" to="$(arg planner_goal_topic)"/>
+      <remap from="/traj_start_trigger" to="traj_start_trigger"/>
+      <remap from="~planning/bspline" to="planning/bspline"/>
+      <remap from="~planning/data_display" to="planning/data_display"/>
+      <remap from="~planning/broadcast_bspline_from_planner" to="$(arg planning_broadcast_topic)"/>
+      <remap from="~planning/broadcast_bspline_to_planner" to="$(arg planning_broadcast_topic)"/>
+      <remap from="~grid_map/odom" to="odom"/>
+      <remap from="~grid_map/depth" to="depth_output"/>
+      <remap from="~grid_map/pose" to="$(arg camera_pose_topic)"/>
+      <remap from="~grid_map/extrinsic" to="$(arg planner_extrinsic_topic)"/>
+      <remap from="~grid_map/cloud" to="unused_cloud"/>
+
+      <param name="fsm/flight_type" value="$(arg planner_flight_type)" type="int"/>
+      <param name="fsm/thresh_replan_time" value="1.0" type="double"/>
+      <param name="fsm/thresh_no_replan_meter" value="1.0" type="double"/>
+      <param name="fsm/planning_horizon" value="7.5" type="double"/>
+      <param name="fsm/planning_horizen_time" value="3.0" type="double"/>
+      <param name="fsm/emergency_time" value="1.0" type="double"/>
+      <param name="fsm/realworld_experiment" value="$(arg planner_realworld_experiment)"/>
+      <param name="fsm/fail_safe" value="$(arg planner_fail_safe)"/>
+      <param name="fsm/waypoint_num" value="1" type="int"/>
+      <param name="fsm/waypoint0_x" value="$(arg target_x)" type="double"/>
+      <param name="fsm/waypoint0_y" value="$(arg target_y)" type="double"/>
+      <param name="fsm/waypoint0_z" value="$(arg target_z)" type="double"/>
+
+      <param name="grid_map/resolution" value="0.1"/>
+      <param name="grid_map/map_size_x" value="$(arg map_size_x)"/>
+      <param name="grid_map/map_size_y" value="$(arg map_size_y)"/>
+      <param name="grid_map/map_size_z" value="$(arg map_size_z)"/>
+      <param name="grid_map/local_update_range_x" value="15.0"/>
+      <param name="grid_map/local_update_range_y" value="15.0"/>
+      <param name="grid_map/local_update_range_z" value="4.5"/>
+      <param name="grid_map/obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
+      <param name="grid_map/local_map_margin" value="10"/>
+      <param name="grid_map/ground_height" value="$(arg grid_map_ground_height)"/>
+      <param name="grid_map/odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+      <param name="grid_map/cx" value="320.5"/>
+      <param name="grid_map/cy" value="240.5"/>
+      <param name="grid_map/fx" value="554.254691191187"/>
+      <param name="grid_map/fy" value="554.254691191187"/>
+      <param name="grid_map/use_depth_filter" value="true"/>
+      <param name="grid_map/depth_filter_tolerance" value="0.15"/>
+      <param name="grid_map/depth_filter_maxdist" value="25.0"/>
+      <param name="grid_map/depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+      <param name="grid_map/depth_filter_margin" value="2"/>
+      <param name="grid_map/k_depth_scaling_factor" value="1000.0"/>
+      <param name="grid_map/skip_pixel" value="2"/>
+      <param name="grid_map/p_hit" value="0.65"/>
+      <param name="grid_map/p_miss" value="0.35"/>
+      <param name="grid_map/p_min" value="0.12"/>
+      <param name="grid_map/p_max" value="0.90"/>
+      <param name="grid_map/p_occ" value="0.80"/>
+      <param name="grid_map/min_ray_length" value="0.1"/>
+      <param name="grid_map/max_ray_length" value="20.0"/>
+      <param name="grid_map/virtual_ceil_height" value="3.0"/>
+      <param name="grid_map/visualization_truncate_height" value="2.9"/>
+      <param name="grid_map/show_occ_time" value="false"/>
+      <param name="grid_map/pose_type" value="2"/>
+      <param name="grid_map/frame_id" value="$(arg world_frame)"/>
+
+      <param name="manager/max_vel" value="$(arg planner_max_vel)" type="double"/>
+      <param name="manager/max_acc" value="$(arg planner_max_acc)" type="double"/>
+      <param name="manager/max_jerk" value="$(arg planner_max_jerk)" type="double"/>
+      <param name="manager/control_points_distance" value="0.4" type="double"/>
+      <param name="manager/feasibility_tolerance" value="0.05" type="double"/>
+      <param name="manager/planning_horizon" value="7.5" type="double"/>
+      <param name="manager/use_distinctive_trajs" value="false" type="bool"/>
+      <param name="manager/drone_id" value="$(arg drone_id)"/>
+
+      <param name="optimization/lambda_smooth" value="1.0" type="double"/>
+      <param name="optimization/lambda_collision" value="0.5" type="double"/>
+      <param name="optimization/lambda_feasibility" value="0.1" type="double"/>
+      <param name="optimization/lambda_fitness" value="1.0" type="double"/>
+      <param name="optimization/dist0" value="0.5" type="double"/>
+      <param name="optimization/swarm_clearance" value="0.5" type="double"/>
+      <param name="optimization/max_vel" value="$(arg planner_max_vel)" type="double"/>
+      <param name="optimization/max_acc" value="$(arg planner_max_acc)" type="double"/>
+
+      <param name="bspline/limit_vel" value="$(arg planner_max_vel)" type="double"/>
+      <param name="bspline/limit_acc" value="$(arg planner_max_acc)" type="double"/>
+      <param name="bspline/limit_ratio" value="1.1" type="double"/>
+
+      <param name="prediction/obj_num" value="0" type="int"/>
+      <param name="prediction/lambda" value="1.0" type="double"/>
+      <param name="prediction/predict_rate" value="1.0" type="double"/>
+    </node>
+
+    <node pkg="ego_planner" type="traj_server" name="traj_server" output="screen">
+      <remap from="position_cmd" to="position_cmd"/>
+      <remap from="/position_cmd" to="position_cmd"/>
+      <remap from="~planning/bspline" to="planning/bspline"/>
+      <param name="traj_server/time_forward" value="1.0" type="double"/>
+    </node>
+
+    <node pkg="px4ctrl" type="px4ctrl_node" name="px4ctrl" output="screen">
+      <remap from="~odom" to="odom"/>
+      <remap from="~cmd" to="position_cmd"/>
+      <remap from="~takeoff_land" to="px4ctrl/takeoff_land"/>
+      <remap from="/traj_start_trigger" to="traj_start_trigger"/>
+      <remap from="mavros/state" to="$(eval '/%s/mavros/state' % arg('sim_ns'))"/>
+      <remap from="mavros/extended_state" to="$(eval '/%s/mavros/extended_state' % arg('sim_ns'))"/>
+      <remap from="mavros/imu/data" to="$(eval '/%s/mavros/imu/data' % arg('sim_ns'))"/>
+      <remap from="mavros/rc/in" to="$(eval '/%s/mavros/rc/in' % arg('sim_ns'))"/>
+      <remap from="mavros/battery" to="$(eval '/%s/mavros/battery' % arg('sim_ns'))"/>
+      <remap from="mavros/setpoint_raw/attitude" to="$(eval '/%s/mavros/setpoint_raw/attitude' % arg('sim_ns'))"/>
+      <remap from="mavros/set_mode" to="$(eval '/%s/mavros/set_mode' % arg('sim_ns'))"/>
+      <remap from="mavros/cmd/arming" to="$(eval '/%s/mavros/cmd/arming' % arg('sim_ns'))"/>
+      <remap from="mavros/cmd/command" to="$(eval '/%s/mavros/cmd/command' % arg('sim_ns'))"/>
+
+      <rosparam command="load" file="$(find px4ctrl)/config/ctrl_param_fpv.yaml"/>
+      <rosparam command="load" file="$(find clean_uav_core)/config/phase1_px4ctrl_no_rc.yaml"/>
+      <param name="mass" value="$(arg mass)" type="double"/>
+      <param name="hover_percent" value="$(arg hover_percent)"/>
+      <param name="thrust_model/hover_percentage" value="$(arg hover_percent)" type="double"/>
+    </node>
+
+    <node pkg="clean_uav_core" type="takeoff_land_trigger.py" name="takeoff_trigger" output="screen">
+      <param name="command" value="takeoff"/>
+      <param name="topic" value="px4ctrl/takeoff_land"/>
+      <param name="state_topic" value="$(eval '/%s/mavros/state' % arg('sim_ns'))"/>
+      <param name="connection_timeout" value="30.0"/>
+      <param name="stable_duration" value="2.0"/>
+      <param name="delay" value="$(arg takeoff_delay)"/>
+      <param name="repeat" value="6"/>
+      <param name="rate" value="2.0"/>
+    </node>
+  </group>
+</launch>

@@ -1,0 +1,72 @@
+<launch>
+  <arg name="drone_id"/>
+  <arg name="init_x"/>
+  <arg name="init_y"/>
+  <arg name="init_z"/>
+  <arg name="init_yaw" default="0.0"/>
+  <arg name="target_x"/>
+  <arg name="target_y"/>
+  <arg name="target_z"/>
+  <arg name="vehicle" default="iris"/>
+  <arg name="vehicle_sdf" default="iris_realsense_camera"/>
+  <arg name="est" default="ekf2"/>
+  <arg name="interactive" default="true"/>
+  <arg name="enable_vins" default="false"/>
+  <arg name="use_truth_odom_runtime" default="true"/>
+  <arg name="planner_max_vel" default="1.2"/>
+  <arg name="planner_max_acc" default="2.8"/>
+  <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="planner_fail_safe" default="true"/>
+  <arg name="planner_flight_type" default="1"/>
+  <arg name="planner_realworld_experiment" default="false"/>
+  <arg name="map_size_x" default="80.0"/>
+  <arg name="map_size_y" default="80.0"/>
+  <arg name="map_size_z" default="5.0"/>
+  <arg name="grid_map_ground_height" default="-0.01"/>
+  <arg name="grid_map_odom_depth_timeout" default="2.0"/>
+  <arg name="grid_map_depth_filter_mindist" default="0.1"/>
+  <arg name="grid_map_obstacles_inflation" default="0.45"/>
+  <arg name="hover_percent" default="0.58"/>
+  <arg name="mass" default="1.2"/>
+  <arg name="takeoff_delay" default="8.0"/>
+
+  <include file="$(find clean_uav_core)/launch/swarm_uav_sim_instance.launch">
+    <arg name="drone_id" value="$(arg drone_id)"/>
+    <arg name="init_x" value="$(arg init_x)"/>
+    <arg name="init_y" value="$(arg init_y)"/>
+    <arg name="init_z" value="$(arg init_z)"/>
+    <arg name="init_yaw" value="$(arg init_yaw)"/>
+    <arg name="vehicle" value="$(arg vehicle)"/>
+    <arg name="vehicle_sdf" value="$(arg vehicle_sdf)"/>
+    <arg name="est" value="$(arg est)"/>
+    <arg name="interactive" value="$(arg interactive)"/>
+  </include>
+
+  <include file="$(find clean_uav_core)/launch/swarm_uav_runtime_instance.launch">
+    <arg name="drone_id" value="$(arg drone_id)"/>
+    <arg name="init_x" value="$(arg init_x)"/>
+    <arg name="init_y" value="$(arg init_y)"/>
+    <arg name="init_z" value="$(arg init_z)"/>
+    <arg name="target_x" value="$(arg target_x)"/>
+    <arg name="target_y" value="$(arg target_y)"/>
+    <arg name="target_z" value="$(arg target_z)"/>
+    <arg name="enable_vins" value="$(arg enable_vins)"/>
+    <arg name="use_truth_odom_runtime" value="$(arg use_truth_odom_runtime)"/>
+    <arg name="planner_max_vel" value="$(arg planner_max_vel)"/>
+    <arg name="planner_max_acc" value="$(arg planner_max_acc)"/>
+    <arg name="planner_max_jerk" value="$(arg planner_max_jerk)"/>
+    <arg name="planner_fail_safe" value="$(arg planner_fail_safe)"/>
+    <arg name="planner_flight_type" value="$(arg planner_flight_type)"/>
+    <arg name="planner_realworld_experiment" value="$(arg planner_realworld_experiment)"/>
+    <arg name="map_size_x" value="$(arg map_size_x)"/>
+    <arg name="map_size_y" value="$(arg map_size_y)"/>
+    <arg name="map_size_z" value="$(arg map_size_z)"/>
+    <arg name="grid_map_ground_height" value="$(arg grid_map_ground_height)"/>
+    <arg name="grid_map_odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+    <arg name="grid_map_depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+    <arg name="grid_map_obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
+    <arg name="hover_percent" value="$(arg hover_percent)"/>
+    <arg name="mass" value="$(arg mass)"/>
+    <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+  </include>
+</launch>
