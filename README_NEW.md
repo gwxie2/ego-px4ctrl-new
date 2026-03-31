@@ -90,6 +90,45 @@ source devel/setup.bash
 
 ## 快速开始
 
+### V2 沙盒快速启动
+
+```bash
+cd /home/guanwen/XTDrone/ego-px4ctrl-new
+source tools/source_phase1_env.sh
+
+# 生成 V2 顶层 launch
+python3 src/clean_uav_core/scripts/swarm_launch_generator.py --version v2
+
+# 启动 V2 主链
+roslaunch clean_uav_core swarm_top_level_v2.launch gui:=false
+```
+
+### V2 可选增强开关
+
+```bash
+# 打开 GoalSet/RViz 工具链
+roslaunch clean_uav_core swarm_top_level_v2.launch gui:=false enable_goal_tooling_v2:=true
+
+# 打开动态障碍广播
+roslaunch clean_uav_core swarm_top_level_v2.launch gui:=false enable_moving_obstacles_v2:=true
+
+# 打开 manual take over 和轨迹可视化
+roslaunch clean_uav_core swarm_top_level_v2.launch gui:=false enable_manual_take_over_v2:=true enable_manual_take_over_station_v2:=true enable_odom_visualization_v2:=true
+
+# 运行 V2 smoke test
+./test_swarm_v2_smoke.sh
+
+# 运行 V2 真实运行态健康检查
+./test_swarm_v2_runtime_health.sh
+
+# 运行 V2 组合场景运行矩阵
+./test_swarm_v2_runtime_matrix.sh
+```
+
+V2 详细说明见：
+
+- `docs/swarm_v2_sandbox_CN.md`
+
 ### 5 分钟快速启动（3 机示例）
 
 ```bash

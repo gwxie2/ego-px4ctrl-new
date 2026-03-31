@@ -76,6 +76,7 @@ add_message_files(
   Odometry.msg
   PolynomialTrajectory.msg
   LQRTrajectory.msg
+  GoalSet.msg
 )
 
 generate_messages(

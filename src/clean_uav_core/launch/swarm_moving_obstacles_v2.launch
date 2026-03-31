@@ -1,0 +1,32 @@
+<launch>
+  <arg name="enable_joy_node" default="false"/>
+  <arg name="joy_topic" default="/joy0"/>
+  <arg name="joy_dev" default="/dev/input/js0"/>
+  <arg name="broadcast_traj_topic" default="/swarm/v2/broadcast_traj"/>
+
+  <arg name="obstacle1_id" default="20"/>
+  <arg name="obstacle1_init_pos" default="[-10, 2]"/>
+  <arg name="desired_clearance1" default="0.5"/>
+  <arg name="obstacle2_id" default="21"/>
+  <arg name="obstacle2_init_pos" default="[-10, -2]"/>
+  <arg name="desired_clearance2" default="0.5"/>
+
+  <node if="$(arg enable_joy_node)" name="joy_node_v2" pkg="joy" type="joy_node">
+    <remap from="joy" to="$(arg joy_topic)"/>
+    <param name="dev" value="$(arg joy_dev)" type="string"/>
+    <param name="deadzone" value="0.1" type="double"/>
+    <param name="autorepeat_rate" value="10.0" type="double"/>
+    <param name="coalesce_interval" value="0.1" type="double"/>
+  </node>
+
+  <node pkg="moving_obstacles" name="moving_obstacles_v2" type="moving_obstacles_node" output="screen">
+    <remap from="~joy" to="$(arg joy_topic)"/>
+    <param name="broadcast_traj_topic" value="$(arg broadcast_traj_topic)"/>
+    <param name="obstacle1_id" value="$(arg obstacle1_id)"/>
+    <rosparam param="obstacle1_init_pos">$(arg obstacle1_init_pos)</rosparam>
+    <param name="desired_clearance1" value="$(arg desired_clearance1)"/>
+    <param name="obstacle2_id" value="$(arg obstacle2_id)"/>
+    <rosparam param="obstacle2_init_pos">$(arg obstacle2_init_pos)</rosparam>
+    <param name="desired_clearance2" value="$(arg desired_clearance2)"/>
+  </node>
+</launch>

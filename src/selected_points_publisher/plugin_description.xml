@@ -1,0 +1,9 @@
+<library path="lib/libselected_points_publisher">
+  <class name="rviz_plugin_selected_points_publisher/SelectedPointsPublisher"
+         type="rviz_plugin_selected_points_publisher::SelectedPointsPublisher"
+         base_class_type="rviz::Tool">
+    <description>
+      Drag with the left button to select drones and right click to publish a goal.
+    </description>
+  </class>
+</library>

@@ -1,0 +1,11 @@
+<launch>
+    <arg name="drone_id" default="999"/>
+    <arg name="cmd_topic" default="/position_cmd"/>
+    <arg name="mandatory_stop_topic" default="/mandatory_stop_to_planner"/>
+    <arg name="joystick_topic" default="/joystick_from_bridge"/>
+    <node pkg="manual_take_over" name="drone_$(arg drone_id)_manual_take_over" type="manual_take_over" output="screen">
+      <param name="cmd_topic" value="$(arg cmd_topic)"/>
+      <param name="mandatory_stop_topic" value="$(arg mandatory_stop_topic)"/>
+      <param name="joystick_topic" value="$(arg joystick_topic)"/>
+    </node>
+</launch>

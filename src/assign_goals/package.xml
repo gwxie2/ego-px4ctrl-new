@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>assign_goals</name>
+  <version>0.0.0</version>
+  <description>Goal assignment helpers for the V2 sandbox.</description>
+
+  <maintainer email="guanwen@todo.todo">guanwen</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>quadrotor_msgs</depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>uav_utils</depend>
+  <depend>visualization_msgs</depend>
+</package>

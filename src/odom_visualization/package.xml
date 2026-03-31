@@ -1,0 +1,22 @@
+<package format="2">
+  <version>0.0.0</version>
+  <name>odom_visualization</name>
+    <description>Odometry visualization helpers for drones and dynamic obstacles.</description>
+  <maintainer email="eeshaojie@todo.todo">Shaojie Shen</maintainer>
+  <license>BSD</license>
+  <url>http://ros.org/wiki/odom_visualization</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>pose_utils</depend>
+  <depend>quadrotor_msgs</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>tf</depend>
+  <depend>visualization_msgs</depend>
+
+</package>
+
+

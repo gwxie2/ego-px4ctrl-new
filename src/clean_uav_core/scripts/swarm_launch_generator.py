@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the top-level swarm launch file from the Phase 1 position rules."""
+"""Generate versioned top-level swarm launch files from the Phase 1 position rules."""
 
 import argparse
 import math
@@ -8,6 +8,9 @@ import sys
 from pathlib import Path
 
 import rospkg
+
+
+SUPPORTED_VERSIONS = ("v1", "v2")
 
 
 def get_clean_uav_core_path():
@@ -39,16 +42,45 @@ def resolve_config_path(config_path):
     return workspace_candidate
 
 
-def resolve_output_path(output_path):
+def normalize_version(version):
+    normalized = str(version).strip().lower()
+    if normalized not in SUPPORTED_VERSIONS:
+        raise ValueError(f"unsupported version '{version}', expected one of {SUPPORTED_VERSIONS}")
+    return normalized
+
+
+def resolve_output_path(output_path, version):
     workspace_root = get_workspace_root()
     if not output_path:
-        return workspace_root / "src" / "clean_uav_core" / "launch" / "swarm_top_level.launch"
+        return workspace_root / "src" / "clean_uav_core" / "launch" / f"swarm_top_level_{version}.launch"
 
     candidate = Path(output_path)
     if candidate.is_absolute():
         return candidate
 
     return workspace_root / candidate
+
+
+def ensure_v2_requirements():
+    clean_uav_core_path = Path(get_clean_uav_core_path())
+    workspace_root = get_workspace_root()
+    missing = []
+
+    try:
+        rospkg.RosPack().get_path("ego_planner_v2")
+    except rospkg.ResourceNotFound:
+        missing.append("ROS package ego_planner_v2")
+
+    runtime_template = clean_uav_core_path / "launch" / "swarm_uav_runtime_instance_v2.launch"
+    if not runtime_template.exists():
+        missing.append(str(runtime_template))
+
+    goalset_msg = workspace_root / "src" / "quadrotor_msgs" / "msg" / "GoalSet.msg"
+    if not goalset_msg.exists():
+        missing.append(str(goalset_msg))
+
+    if missing:
+        raise FileNotFoundError("missing V2 prerequisites: " + ", ".join(missing))
 
 
 def parse_uav_ids(config_path):
@@ -120,13 +152,28 @@ def build_phase1_uav_configs(config_path, radius=15.0, start_z=0.10, goal_z=1.50
 class SwarmLaunchGenerator:
     """Generate the composed top-level swarm launch file."""
 
-    def __init__(self, config_path, output_path):
+    def __init__(self, config_path, output_path, version):
         self.config_path = config_path
         self.output_path = output_path
+        self.version = normalize_version(version)
+        self.runtime_launch = "swarm_uav_runtime_instance.launch"
+        self.commander_script = "swarm_dynamic_commander.py"
+        self.commander_name = "swarm_dynamic_commander"
+        self.include_swarm_trigger = True
+
+        if self.version == "v2":
+            ensure_v2_requirements()
+            self.runtime_launch = "swarm_uav_runtime_instance_v2.launch"
+            self.commander_script = "swarm_dynamic_commander_v2.py"
+            self.commander_name = "swarm_dynamic_commander_v2"
+            self.include_swarm_trigger = False
+
         self.uav_configs = build_phase1_uav_configs(config_path)
         self.num_uavs = len(self.uav_configs)
 
-        print(f"[Generator] Built {self.num_uavs} UAV configs from Phase 1 rules in {self.config_path}")
+        print(
+            f"[Generator] Built {self.num_uavs} UAV configs for {self.version} from Phase 1 rules in {self.config_path}"
+        )
 
     def _indent(self, level, text=""):
         """生成缩进"""
@@ -158,9 +205,33 @@ class SwarmLaunchGenerator:
           lines.append(self._indent(1, "<arg name=\"planner_max_acc\" default=\"2.8\"/>"))
           lines.append(self._indent(1, "<arg name=\"planner_max_jerk\" default=\"4.0\"/>"))
           lines.append(self._indent(1, "<arg name=\"planner_fail_safe\" default=\"true\"/>"))
-          lines.append(self._indent(1, "<arg name=\"planner_flight_type\" default=\"1\"/>"))
+          planner_flight_type_default = "2" if self.version == "v2" else "1"
+          lines.append(self._indent(1, f"<arg name=\"planner_flight_type\" default=\"{planner_flight_type_default}\"/>"))
           lines.append(self._indent(1, "<arg name=\"planner_realworld_experiment\" default=\"false\"/>"))
           lines.append(self._indent(1, ""))
+
+          if self.version == "v2":
+              lines.append(self._indent(1, "<!-- ===== V2 sandbox topics ===== -->"))
+              lines.append(self._indent(1, "<arg name=\"planner_goal_topic\" default=\"/goal_with_id\"/>"))
+              lines.append(self._indent(1, "<arg name=\"planning_broadcast_topic_v2\" default=\"/swarm/v2/broadcast_traj\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_goal_tooling_v2\" default=\"false\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_assign_goals_v2\" default=\"true\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_random_goals_v2\" default=\"false\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_moving_obstacles_v2\" default=\"false\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_manual_take_over_v2\" default=\"false\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_manual_take_over_station_v2\" default=\"false\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_manual_take_over_joy_node_v2\" default=\"true\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_odom_visualization_v2\" default=\"false\"/>"))
+              lines.append(self._indent(1, "<arg name=\"v2_selected_drones_topic\" default=\"/swarm/v2/rviz_selected_drones\"/>"))
+              lines.append(self._indent(1, "<arg name=\"v2_pose_goal_topic\" default=\"/swarm/v2/goal_pose\"/>"))
+              lines.append(self._indent(1, "<arg name=\"v2_goal_arrow_topic\" default=\"/swarm/v2/new_goals_arrow\"/>"))
+              lines.append(self._indent(1, "<arg name=\"enable_moving_obstacles_joy_node_v2\" default=\"false\"/>"))
+              lines.append(self._indent(1, "<arg name=\"moving_obstacles_joy_topic_v2\" default=\"/joy0\"/>"))
+              lines.append(self._indent(1, "<arg name=\"manual_take_over_joy_input_topic_v2\" default=\"/joy\"/>"))
+              lines.append(self._indent(1, "<arg name=\"manual_take_over_joy_topic_v2\" default=\"/swarm/v2/manual_take_over/joystick\"/>"))
+              lines.append(self._indent(1, "<arg name=\"manual_take_over_joy_dev_v2\" default=\"/dev/input/js0\"/>"))
+              lines.append(self._indent(1, "<arg name=\"odom_visualization_scale_v2\" default=\"0.35\"/>"))
+              lines.append(self._indent(1, ""))
 
           lines.append(self._indent(1, "<!-- ===== Grid Map 参数 ===== -->"))
           lines.append(self._indent(1, "<arg name=\"map_size_x\" default=\"80.0\"/>"))
@@ -246,7 +317,7 @@ class SwarmLaunchGenerator:
             goal = config["goal"]
 
             lines.append(self._indent(1, f"<!-- drone_{drone_id} runtime -->"))
-            lines.append(self._indent(1, "<include file=\"$(find clean_uav_core)/launch/swarm_uav_runtime_instance.launch\">"))
+            lines.append(self._indent(1, f"<include file=\"$(find clean_uav_core)/launch/{self.runtime_launch}\">"))
 
             lines.append(self._indent(2, f"<arg name=\"drone_id\" value=\"{drone_id}\"/>"))
             lines.append(self._indent(2, f"<arg name=\"init_x\" value=\"{init['x']}\"/>"))
@@ -277,6 +348,9 @@ class SwarmLaunchGenerator:
             lines.append(self._indent(2, "<arg name=\"planner_start_stable_duration\" value=\"$(arg planner_start_stable_duration)\"/>"))
             lines.append(self._indent(2, "<arg name=\"planner_start_timeout\" value=\"$(arg planner_start_timeout)\"/>"))
             lines.append(self._indent(2, "<arg name=\"planner_post_takeoff_delay\" value=\"$(arg planner_post_takeoff_delay)\"/>"))
+            if self.version == "v2":
+                lines.append(self._indent(2, "<arg name=\"planner_goal_topic\" value=\"$(arg planner_goal_topic)\"/>"))
+                lines.append(self._indent(2, "<arg name=\"planning_broadcast_topic\" value=\"$(arg planning_broadcast_topic_v2)\"/>"))
 
             lines.append(self._indent(1, "</include>"))
             lines.append(self._indent(1, ""))
@@ -284,6 +358,9 @@ class SwarmLaunchGenerator:
         return lines
 
     def _generate_swarm_trigger(self):
+        if not self.include_swarm_trigger:
+            return []
+
         lines = []
         lines.append(self._indent(1, "<!-- ========================================== -->"))
         lines.append(self._indent(1, "<!-- Synchronized Trajectory Trigger               -->"))
@@ -305,15 +382,103 @@ class SwarmLaunchGenerator:
         lines.append(self._indent(1, "<!-- Dynamic Goal Commander                        -->"))
         lines.append(self._indent(1, "<!-- ========================================== -->"))
         lines.append(self._indent(1, ""))
-        lines.append(self._indent(1, "<node pkg=\"clean_uav_core\" type=\"swarm_dynamic_commander.py\" name=\"swarm_dynamic_commander\" output=\"screen\">"))
+        lines.append(self._indent(1, f"<node pkg=\"clean_uav_core\" type=\"{self.commander_script}\" name=\"{self.commander_name}\" output=\"screen\">"))
         lines.append(self._indent(2, f"<param name=\"config_file\" value=\"{self.config_path}\"/>"))
-        lines.append(self._indent(2, "<param name=\"frame_id\" value=\"world\"/>"))
         lines.append(self._indent(2, "<param name=\"start_delay\" value=\"$(arg goal_start_delay)\"/>"))
         lines.append(self._indent(2, "<param name=\"publish_rate\" value=\"$(arg goal_publish_rate)\"/>"))
         lines.append(self._indent(2, "<param name=\"enable_oscillation\" value=\"$(arg enable_oscillation)\"/>"))
         lines.append(self._indent(2, "<param name=\"period_sec\" value=\"$(arg goal_period_sec)\"/>"))
+        if self.version == "v1":
+            lines.append(self._indent(2, "<param name=\"frame_id\" value=\"world\"/>"))
+        else:
+            lines.append(self._indent(2, "<param name=\"goal_topic\" value=\"$(arg planner_goal_topic)\"/>"))
         lines.append(self._indent(1, "</node>"))
         lines.append(self._indent(1, ""))
+        return lines
+
+    def _generate_v2_goal_tooling(self):
+        if self.version != "v2":
+            return []
+
+        lines = []
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, "<!-- Optional V2 Goal Tooling                     -->"))
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, ""))
+        lines.append(self._indent(1, "<include if=\"$(arg enable_goal_tooling_v2)\" file=\"$(find clean_uav_core)/launch/swarm_goal_tooling_v2.launch\">"))
+        lines.append(self._indent(2, "<arg name=\"rviz_node_name\" value=\"swarm_rviz\"/>"))
+        lines.append(self._indent(2, "<arg name=\"enable_assign_goals\" value=\"$(arg enable_assign_goals_v2)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"enable_random_goals\" value=\"$(arg enable_random_goals_v2)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"selected_drones_topic\" value=\"$(arg v2_selected_drones_topic)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"pose_goal_topic\" value=\"$(arg v2_pose_goal_topic)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"goalset_topic\" value=\"$(arg planner_goal_topic)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"arrow_topic\" value=\"$(arg v2_goal_arrow_topic)\"/>"))
+        lines.append(self._indent(2, f"<arg name=\"drone_num\" value=\"{self.num_uavs}\"/>"))
+        lines.append(self._indent(1, "</include>"))
+        lines.append(self._indent(1, ""))
+        return lines
+
+    def _generate_v2_moving_obstacles(self):
+        if self.version != "v2":
+            return []
+
+        lines = []
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, "<!-- Optional V2 Moving Obstacles                -->"))
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, ""))
+        lines.append(self._indent(1, "<include if=\"$(arg enable_moving_obstacles_v2)\" file=\"$(find clean_uav_core)/launch/swarm_moving_obstacles_v2.launch\">"))
+        lines.append(self._indent(2, "<arg name=\"enable_joy_node\" value=\"$(arg enable_moving_obstacles_joy_node_v2)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"joy_topic\" value=\"$(arg moving_obstacles_joy_topic_v2)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"broadcast_traj_topic\" value=\"$(arg planning_broadcast_topic_v2)\"/>"))
+        lines.append(self._indent(1, "</include>"))
+        lines.append(self._indent(1, ""))
+        return lines
+
+    def _generate_v2_manual_take_over(self):
+        if self.version != "v2":
+            return []
+
+        lines = []
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, "<!-- Optional V2 Manual Take Over                -->"))
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, ""))
+
+        lines.append(self._indent(1, "<include if=\"$(arg enable_manual_take_over_station_v2)\" file=\"$(find clean_uav_core)/launch/swarm_manual_take_over_station_v2.launch\">"))
+        lines.append(self._indent(2, "<arg name=\"enable_joy_node\" value=\"$(arg enable_manual_take_over_joy_node_v2)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"joy_input_topic\" value=\"$(arg manual_take_over_joy_input_topic_v2)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"joystick_topic\" value=\"$(arg manual_take_over_joy_topic_v2)\"/>"))
+        lines.append(self._indent(2, "<arg name=\"joy_dev\" value=\"$(arg manual_take_over_joy_dev_v2)\"/>"))
+        lines.append(self._indent(1, "</include>"))
+        lines.append(self._indent(1, ""))
+
+        for drone_id in sorted(self.uav_configs.keys()):
+            lines.append(self._indent(1, f"<include if=\"$(arg enable_manual_take_over_v2)\" file=\"$(find clean_uav_core)/launch/swarm_manual_take_over_instance_v2.launch\">"))
+            lines.append(self._indent(2, f"<arg name=\"drone_id\" value=\"{drone_id}\"/>"))
+            lines.append(self._indent(2, "<arg name=\"joystick_topic\" value=\"$(arg manual_take_over_joy_topic_v2)\"/>"))
+            lines.append(self._indent(1, "</include>"))
+            lines.append(self._indent(1, ""))
+
+        return lines
+
+    def _generate_v2_odom_visualization(self):
+        if self.version != "v2":
+            return []
+
+        lines = []
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, "<!-- Optional V2 Odom Visualization              -->"))
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, ""))
+
+        for drone_id in sorted(self.uav_configs.keys()):
+            lines.append(self._indent(1, f"<include if=\"$(arg enable_odom_visualization_v2)\" file=\"$(find clean_uav_core)/launch/swarm_odom_visualization_instance_v2.launch\">"))
+            lines.append(self._indent(2, f"<arg name=\"drone_id\" value=\"{drone_id}\"/>"))
+            lines.append(self._indent(2, "<arg name=\"robot_scale\" value=\"$(arg odom_visualization_scale_v2)\"/>"))
+            lines.append(self._indent(1, "</include>"))
+            lines.append(self._indent(1, ""))
+
         return lines
 
     def _generate_rviz(self):
@@ -330,9 +495,10 @@ class SwarmLaunchGenerator:
         lines = []
         lines.append('<launch>')
         lines.append(self._indent(0, '<!-- ============================================================= -->'))
-        lines.append(self._indent(0, '<!-- Auto-generated by swarm_launch_generator.py          -->'))
-        lines.append(self._indent(0, f'<!-- Number of UAVs: {self.num_uavs}                                    -->'))
-        lines.append(self._indent(0, f'<!-- Config file: {self.config_path}                          -->'))
+        lines.append(self._indent(0, '<!-- Auto-generated by swarm_launch_generator.py                     -->'))
+        lines.append(self._indent(0, f'<!-- Planner version: {self.version}                                        -->'))
+        lines.append(self._indent(0, f'<!-- Number of UAVs: {self.num_uavs}                                           -->'))
+        lines.append(self._indent(0, f'<!-- Config file: {self.config_path} -->'))
         lines.append(self._indent(0, '<!-- ============================================================= -->'))
         lines.append(self._indent(0, ''))
 
@@ -341,6 +507,10 @@ class SwarmLaunchGenerator:
         lines.extend(self._generate_uav_instances())
         lines.extend(self._generate_swarm_trigger())
         lines.extend(self._generate_dynamic_commander())
+        lines.extend(self._generate_v2_goal_tooling())
+        lines.extend(self._generate_v2_moving_obstacles())
+        lines.extend(self._generate_v2_manual_take_over())
+        lines.extend(self._generate_v2_odom_visualization())
         lines.extend(self._generate_rviz())
 
         lines.append('</launch>')
@@ -361,7 +531,7 @@ class SwarmLaunchGenerator:
         with output_path.open("w", encoding="utf-8") as handle:
             handle.write(xml_content)
 
-        print(f"[Generator] Generated launch file: {output_path}")
+        print(f"[Generator] Generated {self.version} launch file: {output_path}")
         print(f"[Generator] Total UAVs: {self.num_uavs}")
         print(f"[Generator] File size: {len(xml_content)} bytes")
 
@@ -370,27 +540,29 @@ def main():
     parser = argparse.ArgumentParser(description="Generate the top-level swarm launch file")
     parser.add_argument("--config", type=str, default="", help="Path to the drone configuration markdown file")
     parser.add_argument("--output", type=str, default="", help="Path to the generated launch file")
+    parser.add_argument("--version", type=str, default="v1", choices=SUPPORTED_VERSIONS, help="Planner stack version to generate")
 
     args = parser.parse_args()
 
     config_path = resolve_config_path(args.config)
-    output_path = resolve_output_path(args.output)
+    output_path = resolve_output_path(args.output, args.version)
 
     print("=" * 70)
     print("Swarm Launch Generator")
     print("=" * 70)
     print(f"Workspace root: {get_workspace_root()}")
+    print(f"Planner version: {args.version}")
     print(f"Config file: {config_path}")
     print(f"Output file: {output_path}")
     print("=" * 70)
 
-    generator = SwarmLaunchGenerator(config_path, output_path)
+    generator = SwarmLaunchGenerator(config_path, output_path, args.version)
     generator.save()
 
     print("=" * 70)
     print("Generation complete")
     print("=" * 70)
-    print("roslaunch clean_uav_core swarm_top_level.launch")
+    print(f"roslaunch clean_uav_core {Path(output_path).name}")
 
 
 if __name__ == "__main__":

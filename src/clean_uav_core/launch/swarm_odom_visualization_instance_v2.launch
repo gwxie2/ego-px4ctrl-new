@@ -1,0 +1,20 @@
+<launch>
+  <arg name="drone_id"/>
+  <arg name="drone_ns" default="$(eval 'drone_%s' % arg('drone_id'))"/>
+  <arg name="odom_topic" default="$(eval '/%s/odom' % arg('drone_ns'))"/>
+  <arg name="cmd_topic" default="$(eval '/%s/position_cmd' % arg('drone_ns'))"/>
+  <arg name="robot_scale" default="0.35"/>
+  <arg name="frame_id" default="world"/>
+
+  <group ns="$(arg drone_ns)">
+    <node pkg="odom_visualization" type="odom_visualization" name="odom_visualization_v2" output="screen">
+      <remap from="~odom" to="$(arg odom_topic)"/>
+      <remap from="~cmd" to="$(arg cmd_topic)"/>
+      <param name="drone_id" value="$(arg drone_id)"/>
+      <param name="frame_id" value="$(arg frame_id)"/>
+      <param name="robot_scale" value="$(arg robot_scale)"/>
+      <param name="covariance_scale" value="100.0"/>
+      <param name="tf45" value="false"/>
+    </node>
+  </group>
+</launch>

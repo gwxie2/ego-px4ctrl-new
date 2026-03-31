@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>moving_obstacles</name>
+  <version>0.0.0</version>
+  <description>Dynamic obstacle broadcaster for the V2 sandbox.</description>
+
+  <maintainer email="guanwen@todo.todo">guanwen</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>nav_msgs</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>traj_opt_v2</depend>
+  <depend>traj_utils_v2</depend>
+</package>

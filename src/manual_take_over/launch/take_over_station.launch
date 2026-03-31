@@ -1,0 +1,18 @@
+<launch>
+  <arg name="enable_joy_node" default="true"/>
+  <arg name="joy_input_topic" default="/joy"/>
+  <arg name="joy_output_topic" default="/joystick_from_users"/>
+  <arg name="joy_dev" default="/dev/input/js0"/>
+
+  <node if="$(arg enable_joy_node)" name="joy_node" pkg="joy" type="joy_node">
+    <remap from="joy" to="$(arg joy_input_topic)"/>
+    <param name="dev" value="$(arg joy_dev)" type="string"/>
+    <param name="deadzone" value="0.1" type="double"/>
+    <param name="autorepeat_rate" value="10.0" type="double"/>
+    <param name="coalesce_interval" value="0.1" type="double"/>
+  </node>
+  <node pkg="manual_take_over" name="manual_take_over_station" type="manual_take_over_station" output="screen">
+    <param name="joy_input_topic" value="$(arg joy_input_topic)"/>
+    <param name="joy_output_topic" value="$(arg joy_output_topic)"/>
+  </node>
+</launch>

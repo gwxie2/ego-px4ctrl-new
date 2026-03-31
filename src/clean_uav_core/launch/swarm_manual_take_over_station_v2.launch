@@ -1,0 +1,13 @@
+<launch>
+  <arg name="enable_joy_node" default="true"/>
+  <arg name="joy_input_topic" default="/joy"/>
+  <arg name="joystick_topic" default="/swarm/v2/manual_take_over/joystick"/>
+  <arg name="joy_dev" default="/dev/input/js0"/>
+
+  <include file="$(find manual_take_over)/launch/take_over_station.launch">
+    <arg name="enable_joy_node" value="$(arg enable_joy_node)"/>
+    <arg name="joy_input_topic" value="$(arg joy_input_topic)"/>
+    <arg name="joy_output_topic" value="$(arg joystick_topic)"/>
+    <arg name="joy_dev" value="$(arg joy_dev)"/>
+  </include>
+</launch>

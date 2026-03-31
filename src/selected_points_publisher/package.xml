@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>selected_points_publisher</name>
+  <version>0.1.0</version>
+  <description>RViz selection tool used by the V2 sandbox.</description>
+
+  <maintainer email="guanwen@todo.todo">guanwen</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>roscpp</depend>
+  <depend>rviz</depend>
+  <depend>visualization_msgs</depend>
+
+  <export>
+    <rviz plugin="${prefix}/plugin_description.xml"/>
+  </export>
+</package>

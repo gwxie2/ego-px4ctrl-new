@@ -1,0 +1,55 @@
+fsm:
+  thresh_replan_time: 1.0
+  planning_horizon: 7.5
+  emergency_time: 1.0
+  ground_height_measurement: false
+
+grid_map:
+  resolution: 0.1
+  local_update_range_x: 15.0
+  local_update_range_y: 15.0
+  local_update_range_z: 4.5
+  local_map_margin: 10
+  enable_virtual_wall: true
+  virtual_ceil: 3.0
+  virtual_ground: -0.1
+  cx: 320.5
+  cy: 240.5
+  fx: 554.254691191187
+  fy: 554.254691191187
+  use_depth_filter: true
+  depth_filter_tolerance: 0.15
+  depth_filter_maxdist: 25.0
+  depth_filter_margin: 2
+  k_depth_scaling_factor: 1000.0
+  skip_pixel: 2
+  p_hit: 0.65
+  p_miss: 0.35
+  p_min: 0.12
+  p_max: 0.90
+  p_occ: 0.80
+  min_ray_length: 0.1
+  max_ray_length: 20.0
+  visualization_truncate_height: 2.9
+  show_occ_time: false
+  pose_type: 2
+  frame_id: world
+
+manager:
+  polyTraj_piece_length: 1.5
+  feasibility_tolerance: 0.05
+  planning_horizon: 7.5
+  use_multitopology_trajs: false
+
+optimization:
+  constraint_points_perPiece: 5
+  weight_obstacle: 10000.0
+  weight_obstacle_soft: 5000.0
+  weight_swarm: 10000.0
+  weight_feasibility: 10000.0
+  weight_sqrvariance: 10000.0
+  weight_time: 10.0
+  obstacle_clearance: 0.1
+  obstacle_clearance_soft: 0.5
+  swarm_clearance: 0.15
+  record_opt: true

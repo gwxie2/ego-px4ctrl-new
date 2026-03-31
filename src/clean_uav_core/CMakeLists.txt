@@ -176,6 +176,7 @@ catkin_install_python(PROGRAMS
   scripts/odom_pose_adapter.py
   scripts/px4_param_bootstrap.py
   scripts/swarm_dynamic_commander.py
+  scripts/swarm_dynamic_commander_v2.py
   scripts/swarm_launch_generator.py
   scripts/swarm_traj_trigger.py
   scripts/traj_start_trigger.py

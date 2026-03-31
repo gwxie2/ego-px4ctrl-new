@@ -1,0 +1,13 @@
+<launch>
+  <arg name="drone_id"/>
+  <arg name="drone_ns" default="$(eval 'drone_%s' % arg('drone_id'))"/>
+  <arg name="joystick_topic" default="/swarm/v2/manual_take_over/joystick"/>
+
+  <group ns="$(arg drone_ns)">
+    <node pkg="manual_take_over" type="manual_take_over" name="manual_take_over_v2" output="screen">
+      <param name="cmd_topic" value="$(eval '/%s/position_cmd' % arg('drone_ns'))"/>
+      <param name="mandatory_stop_topic" value="$(eval '/%s/mandatory_stop_to_planner' % arg('drone_ns'))"/>
+      <param name="joystick_topic" value="$(arg joystick_topic)"/>
+    </node>
+  </group>
+</launch>

@@ -1,0 +1,35 @@
+<launch>
+  <arg name="rviz_node_name" default="swarm_rviz"/>
+  <arg name="enable_assign_goals" default="true"/>
+  <arg name="enable_random_goals" default="false"/>
+
+  <arg name="selected_drones_topic" default="/swarm/v2/rviz_selected_drones"/>
+  <arg name="pose_goal_topic" default="/swarm/v2/goal_pose"/>
+  <arg name="goalset_topic" default="/goal_with_id"/>
+  <arg name="arrow_topic" default="/swarm/v2/new_goals_arrow"/>
+
+  <arg name="drone_num" default="1"/>
+  <arg name="random_goal_num" default="0"/>
+  <arg name="random_odom_topic_template" default="/drone_%d/odom"/>
+  <arg name="random_combined_odom_topic" default="/swarm/v2/others_odom"/>
+
+  <group ns="$(arg rviz_node_name)">
+    <param name="selected_drones_topic" value="$(arg selected_drones_topic)"/>
+    <param name="goal_topic" value="$(arg pose_goal_topic)"/>
+  </group>
+
+  <node if="$(arg enable_assign_goals)" pkg="assign_goals" type="assign_goals_node" name="assign_goals_v2" output="screen">
+    <param name="selected_drones_topic" value="$(arg selected_drones_topic)"/>
+    <param name="user_goal_topic" value="$(arg pose_goal_topic)"/>
+    <param name="goal_output_topic" value="$(arg goalset_topic)"/>
+    <param name="arrow_topic" value="$(arg arrow_topic)"/>
+  </node>
+
+  <node if="$(arg enable_random_goals)" pkg="random_goals" type="random_goals_node" name="random_goals_v2" output="screen">
+    <param name="drone_num" value="$(arg drone_num)"/>
+    <param name="goal_num" value="$(arg random_goal_num)"/>
+    <param name="odom_topic_template" value="$(arg random_odom_topic_template)"/>
+    <param name="combined_odom_topic" value="$(arg random_combined_odom_topic)"/>
+    <param name="goal_output_topic" value="$(arg goalset_topic)"/>
+  </node>
+</launch>
