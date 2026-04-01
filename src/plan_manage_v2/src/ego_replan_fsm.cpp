@@ -21,6 +21,10 @@ namespace ego_planner
     nh.param("fsm/realworld_experiment", flag_realworld_experiment_, false);
     nh.param("fsm/fail_safe", enable_fail_safe_, true);
     nh.param("fsm/ground_height_measurement", enable_ground_height_measurement_, false);
+    nh.param("swarm/acceptance_radius", swarm_acceptance_radius_, -1.0);
+    nh.param("swarm/time_warn_threshold", swarm_time_warn_threshold_, 0.25);
+    nh.param("swarm/time_reject_threshold", swarm_time_reject_threshold_, 10.0);
+    nh.param("swarm/filter_far_trajectories", swarm_filter_far_trajectories_, false);
 
     nh.param("fsm/waypoint_num", waypoint_num_, -1);
     for (int i = 0; i < waypoint_num_; i++)
@@ -678,10 +682,10 @@ namespace ego_planner
     }
 
     ros::Time t_now = ros::Time::now();
-    if (abs((t_now - msg->start_time).toSec()) > 0.25)
+    const double time_diff = abs((t_now - msg->start_time).toSec());
+    if (time_diff > swarm_time_warn_threshold_)
     {
-
-      if (abs((t_now - msg->start_time).toSec()) < 10.0) // 10 seconds offset, more likely to be caused by unsynced system time.
+      if (time_diff < swarm_time_reject_threshold_) // moderate offset, warn but keep.
       {
         ROS_WARN("Time stamp diff: Local - Remote Agent %d = %fs",
                  msg->drone_id, (t_now - msg->start_time).toSec());
@@ -734,13 +738,17 @@ namespace ego_planner
 
     /* Ignore the trajectories that are far away */
     Eigen::MatrixXd cps_chk = MJO.getInitConstraintPoints(5); // K = 5, such accuracy is sufficient
-    bool far_away = true;
-    for (int i = 0; i < cps_chk.cols(); ++i)
+    bool far_away = false;
+    if (swarm_filter_far_trajectories_ && swarm_acceptance_radius_ > 0.0)
     {
-      if ((cps_chk.col(i) - odom_pos_).norm() < planner_manager_->pp_.planning_horizen_ * 4 / 3) // close to me that can not be ignored
+      far_away = true;
+      for (int i = 0; i < cps_chk.cols(); ++i)
       {
-        far_away = false;
-        break;
+        if ((cps_chk.col(i) - odom_pos_).norm() < swarm_acceptance_radius_)
+        {
+          far_away = false;
+          break;
+        }
       }
     }
     if (!far_away || !have_recv_pre_agent_) // Accept a far traj if no previous agent received

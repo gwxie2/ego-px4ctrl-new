@@ -193,7 +193,8 @@ class SwarmLaunchGenerator:
           lines.append(self._indent(1, ""))
 
           lines.append(self._indent(1, "<arg name=\"use_rviz\" default=\"true\"/>"))
-          lines.append(self._indent(1, "<arg name=\"rviz_config\" default=\"$(find clean_uav_core)/rviz/swarm_rviz.rviz\"/>"))
+          rviz_config_default = "$(find clean_uav_core)/rviz/swarm_rviz_v2.rviz" if self.version == "v2" else "$(find clean_uav_core)/rviz/swarm_rviz.rviz"
+          lines.append(self._indent(1, f"<arg name=\"rviz_config\" default=\"{rviz_config_default}\"/>"))
           lines.append(self._indent(1, ""))
 
           lines.append(self._indent(1, "<arg name=\"enable_vins\" default=\"false\"/>"))
@@ -208,6 +209,12 @@ class SwarmLaunchGenerator:
           planner_flight_type_default = "2" if self.version == "v2" else "1"
           lines.append(self._indent(1, f"<arg name=\"planner_flight_type\" default=\"{planner_flight_type_default}\"/>"))
           lines.append(self._indent(1, "<arg name=\"planner_realworld_experiment\" default=\"false\"/>"))
+          lines.append(self._indent(1, "<arg name=\"swarm_acceptance_radius\" default=\"-1.0\"/>"))
+          lines.append(self._indent(1, "<arg name=\"swarm_filter_far_trajectories\" default=\"false\"/>"))
+          lines.append(self._indent(1, "<arg name=\"swarm_time_warn_threshold\" default=\"0.25\"/>"))
+          lines.append(self._indent(1, "<arg name=\"swarm_time_reject_threshold\" default=\"10.0\"/>"))
+          swarm_clearance_default = "0.35" if self.version == "v2" else "0.5"
+          lines.append(self._indent(1, f"<arg name=\"swarm_clearance\" default=\"{swarm_clearance_default}\"/>"))
           lines.append(self._indent(1, ""))
 
           if self.version == "v2":
@@ -348,6 +355,11 @@ class SwarmLaunchGenerator:
             lines.append(self._indent(2, "<arg name=\"planner_start_stable_duration\" value=\"$(arg planner_start_stable_duration)\"/>"))
             lines.append(self._indent(2, "<arg name=\"planner_start_timeout\" value=\"$(arg planner_start_timeout)\"/>"))
             lines.append(self._indent(2, "<arg name=\"planner_post_takeoff_delay\" value=\"$(arg planner_post_takeoff_delay)\"/>"))
+            lines.append(self._indent(2, "<arg name=\"swarm_acceptance_radius\" value=\"$(arg swarm_acceptance_radius)\"/>"))
+            lines.append(self._indent(2, "<arg name=\"swarm_filter_far_trajectories\" value=\"$(arg swarm_filter_far_trajectories)\"/>"))
+            lines.append(self._indent(2, "<arg name=\"swarm_time_warn_threshold\" value=\"$(arg swarm_time_warn_threshold)\"/>"))
+            lines.append(self._indent(2, "<arg name=\"swarm_time_reject_threshold\" value=\"$(arg swarm_time_reject_threshold)\"/>"))
+            lines.append(self._indent(2, "<arg name=\"swarm_clearance\" value=\"$(arg swarm_clearance)\"/>"))
             if self.version == "v2":
                 lines.append(self._indent(2, "<arg name=\"planner_goal_topic\" value=\"$(arg planner_goal_topic)\"/>"))
                 lines.append(self._indent(2, "<arg name=\"planning_broadcast_topic\" value=\"$(arg planning_broadcast_topic_v2)\"/>"))

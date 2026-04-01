@@ -23,6 +23,11 @@
   <arg name="planner_goal_topic" default="/goal_with_id"/>
   <arg name="planning_broadcast_topic" default="/swarm/v2/broadcast_traj"/>
   <arg name="depth_topic_raw" default="$(eval '/%s/realsense/depth_camera/depth/image_raw' % arg('sim_ns'))"/>
+  <arg name="swarm_acceptance_radius" default="-1.0"/>
+  <arg name="swarm_filter_far_trajectories" default="false"/>
+  <arg name="swarm_time_warn_threshold" default="0.25"/>
+  <arg name="swarm_time_reject_threshold" default="10.0"/>
+  <arg name="swarm_clearance" default="0.35"/>
 
   <arg name="planner_max_vel" default="1.2"/>
   <arg name="planner_max_acc" default="2.8"/>
@@ -115,7 +120,12 @@
       <param name="manager/max_vel" value="$(arg planner_max_vel)" type="double"/>
       <param name="manager/max_acc" value="$(arg planner_max_acc)" type="double"/>
       <param name="manager/drone_id" value="$(arg drone_id)"/>
+      <param name="swarm/acceptance_radius" value="$(arg swarm_acceptance_radius)" type="double"/>
+      <param name="swarm/filter_far_trajectories" value="$(arg swarm_filter_far_trajectories)" type="bool"/>
+      <param name="swarm/time_warn_threshold" value="$(arg swarm_time_warn_threshold)" type="double"/>
+      <param name="swarm/time_reject_threshold" value="$(arg swarm_time_reject_threshold)" type="double"/>
 
+      <param name="optimization/swarm_clearance" value="$(arg swarm_clearance)" type="double"/>
       <param name="optimization/max_vel" value="$(arg planner_max_vel)" type="double"/>
       <param name="optimization/max_acc" value="$(arg planner_max_acc)" type="double"/>
       <param name="optimization/max_jer" value="$(arg planner_max_jerk)" type="double"/>

@@ -68,10 +68,14 @@ namespace ego_planner
     int waypoint_num_, wpt_id_;
     double planning_horizen_;
     double emergency_time_;
+    double swarm_acceptance_radius_;
+    double swarm_time_warn_threshold_;
+    double swarm_time_reject_threshold_;
     bool flag_realworld_experiment_;
     bool enable_fail_safe_;
     bool enable_ground_height_measurement_;
     bool flag_escape_emergency_;
+    bool swarm_filter_far_trajectories_;
 
     bool have_trigger_, have_target_, have_odom_, have_new_target_, have_recv_pre_agent_, touch_goal_, mandatory_stop_;
     FSM_EXEC_STATE exec_state_;

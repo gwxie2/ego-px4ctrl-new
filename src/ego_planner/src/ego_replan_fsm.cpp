@@ -22,6 +22,10 @@ namespace ego_planner
     nh.param("fsm/emergency_time", emergency_time_, 1.0);
     nh.param("fsm/realworld_experiment", flag_realworld_experiment_, false);
     nh.param("fsm/fail_safe", enable_fail_safe_, true);
+    nh.param("swarm/acceptance_radius", swarm_acceptance_radius_, -1.0);
+    nh.param("swarm/time_warn_threshold", swarm_time_warn_threshold_, 0.25);
+    nh.param("swarm/time_reject_threshold", swarm_time_reject_threshold_, 10.0);
+    nh.param("swarm/filter_far_trajectories", swarm_filter_far_trajectories_, false);
 
     have_trigger_ = !flag_realworld_experiment_;
 
@@ -326,11 +330,20 @@ namespace ego_planner
     if ((int)id == planner_manager_->pp_.drone_id)
       return;
 
-    if (abs((ros::Time::now() - msg->start_time).toSec()) > 0.25)
+    const double time_diff = abs((ros::Time::now() - msg->start_time).toSec());
+    if (time_diff > swarm_time_warn_threshold_)
     {
-      ROS_ERROR("Time difference is too large! Local - Remote Agent %d = %fs",
-                msg->drone_id, (ros::Time::now() - msg->start_time).toSec());
-      return;
+      if (time_diff > swarm_time_reject_threshold_)
+      {
+        ROS_ERROR("Time difference is too large! Local - Remote Agent %d = %fs",
+                  msg->drone_id, (ros::Time::now() - msg->start_time).toSec());
+        return;
+      }
+
+      ROS_WARN_THROTTLE(1.0,
+                        "Time difference warning: Local - Remote Agent %d = %fs",
+                        msg->drone_id,
+                        (ros::Time::now() - msg->start_time).toSec());
     }
 
     /* Fill up the buffer */
@@ -349,7 +362,8 @@ namespace ego_planner
     Eigen::Vector3d cp1(msg->pos_pts[1].x, msg->pos_pts[1].y, msg->pos_pts[1].z);
     Eigen::Vector3d cp2(msg->pos_pts[2].x, msg->pos_pts[2].y, msg->pos_pts[2].z);
     Eigen::Vector3d swarm_start_pt = (cp0 + 4 * cp1 + cp2) / 6;
-    if ((swarm_start_pt - odom_pos_).norm() > planning_horizen_ * 4.0f / 3.0f)
+    if (swarm_filter_far_trajectories_ && swarm_acceptance_radius_ > 0.0 &&
+      (swarm_start_pt - odom_pos_).norm() > swarm_acceptance_radius_)
     {
       planner_manager_->swarm_trajs_buf_[id].drone_id = -1;
       return; // if the current drone is too far to the received agent.
@@ -390,6 +404,11 @@ namespace ego_planner
 
     planner_manager_->swarm_trajs_buf_[id].start_time_ = msg->start_time;
     // planner_manager_->swarm_trajs_buf_[id].start_time_ = ros::Time::now(); // Un-reliable time sync
+
+    if (!have_recv_pre_agent_ && (int)id == planner_manager_->pp_.drone_id - 1)
+    {
+      have_recv_pre_agent_ = true;
+    }
 
     /* Check Collision */
     if (planner_manager_->checkCollision(id))
@@ -435,7 +454,8 @@ namespace ego_planner
       Eigen::Vector3d cp1(msg->traj[i].pos_pts[1].x, msg->traj[i].pos_pts[1].y, msg->traj[i].pos_pts[1].z);
       Eigen::Vector3d cp2(msg->traj[i].pos_pts[2].x, msg->traj[i].pos_pts[2].y, msg->traj[i].pos_pts[2].z);
       Eigen::Vector3d swarm_start_pt = (cp0 + 4 * cp1 + cp2) / 6;
-      if ((swarm_start_pt - odom_pos_).norm() > planning_horizen_ * 4.0f / 3.0f)
+      if (swarm_filter_far_trajectories_ && swarm_acceptance_radius_ > 0.0 &&
+          (swarm_start_pt - odom_pos_).norm() > swarm_acceptance_radius_)
       {
         planner_manager_->swarm_trajs_buf_[i].drone_id = -1;
         continue;

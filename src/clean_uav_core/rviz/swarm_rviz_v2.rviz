@@ -1,0 +1,530 @@
+Panels:
+  - Class: rviz/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /drone_01
+        - /drone_01/Map Inflate drone_01
+        - /drone_11
+        - /drone_11/Map Inflate drone_11
+        - /drone_21
+        - /drone_21/Map Inflate drone_21
+      Splitter Ratio: 0.1
+    Tree Height: 320
+  - Class: rviz/Selection
+    Name: Selection
+  - Class: rviz/Tool Properties
+    Expanded:
+      - /2D Pose Estimate1
+      - /2D Nav Goal1
+      - /Publish Point1
+    Name: Tool Properties
+    Splitter Ratio: 0.5
+  - Class: rviz/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz/Time
+    Experimental: false
+    Name: Time
+    SyncMode: 0
+    SyncSource: Depth uav0
+Preferences:
+  PromptSaveOnExit: true
+Toolbars:
+  toolButtonStyle: 2
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 40
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Class: rviz/Group
+      Displays:
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /drone_0/ego_planner_v2/goal_point
+          Name: Goal Point drone_0
+          Namespaces:
+            "": true
+          Queue Size: 100
+          Value: true
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /drone_0/ego_planner_v2/optimal_list
+          Name: Optimal Traj drone_0
+          Namespaces:
+            "": true
+          Queue Size: 100
+          Value: true
+        - Alpha: 0.6
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: AxisColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Raw drone_0
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.08
+          Style: Flat Squares
+          Topic: /drone_0/ego_planner_v2/grid_map/occupancy
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: AxisColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Inflate drone_0
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.1
+          Style: Boxes
+          Topic: /drone_0/ego_planner_v2/grid_map/occupancy_inflate
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Class: rviz/Image
+          Enabled: true
+          Image Topic: /iris_0/realsense/depth_camera/depth/image_raw
+          Max Value: 8
+          Median window: 5
+          Min Value: 0
+          Name: Depth uav0
+          Normalize Range: false
+          Queue Size: 2
+          Transport Hint: raw
+          Unreliable: false
+          Value: true
+      Enabled: true
+      Name: drone_0
+    - Class: rviz/Group
+      Displays:
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /drone_1/ego_planner_v2/goal_point
+          Name: Goal Point drone_1
+          Namespaces:
+            "": true
+          Queue Size: 100
+          Value: true
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /drone_1/ego_planner_v2/optimal_list
+          Name: Optimal Traj drone_1
+          Namespaces:
+            "": true
+          Queue Size: 100
+          Value: true
+        - Alpha: 0.6
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: AxisColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Raw drone_1
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.08
+          Style: Flat Squares
+          Topic: /drone_1/ego_planner_v2/grid_map/occupancy
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: AxisColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Inflate drone_1
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.1
+          Style: Boxes
+          Topic: /drone_1/ego_planner_v2/grid_map/occupancy_inflate
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Class: rviz/Image
+          Enabled: true
+          Image Topic: /iris_1/realsense/depth_camera/depth/image_raw
+          Max Value: 8
+          Median window: 5
+          Min Value: 0
+          Name: Depth uav1
+          Normalize Range: false
+          Queue Size: 2
+          Transport Hint: raw
+          Unreliable: false
+          Value: true
+      Enabled: true
+      Name: drone_1
+    - Class: rviz/Group
+      Displays:
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /drone_2/ego_planner_v2/goal_point
+          Name: Goal Point drone_2
+          Namespaces:
+            "": true
+          Queue Size: 100
+          Value: true
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /drone_2/ego_planner_v2/optimal_list
+          Name: Optimal Traj drone_2
+          Namespaces:
+            "": true
+          Queue Size: 100
+          Value: true
+        - Alpha: 0.6
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: AxisColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Raw drone_2
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.08
+          Style: Flat Squares
+          Topic: /drone_2/ego_planner_v2/grid_map/occupancy
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: AxisColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Inflate drone_2
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.1
+          Style: Boxes
+          Topic: /drone_2/ego_planner_v2/grid_map/occupancy_inflate
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Class: rviz/Image
+          Enabled: true
+          Image Topic: /iris_2/realsense/depth_camera/depth/image_raw
+          Max Value: 8
+          Median window: 5
+          Min Value: 0
+          Name: Depth uav2
+          Normalize Range: false
+          Queue Size: 2
+          Transport Hint: raw
+          Unreliable: false
+          Value: true
+      Enabled: true
+      Name: drone_2
+    - Alpha: 1
+      Axes Length: 0.8
+      Axes Radius: 0.08
+      Class: rviz/Pose
+      Color: 255; 64; 64
+      Enabled: true
+      Head Length: 0.3
+      Head Radius: 0.1
+      Name: Pose drone_0
+      Shaft Length: 0.7
+      Shaft Radius: 0.05
+      Shape: Arrow
+      Topic: /drone_0/pose
+      Unreliable: false
+      Value: true
+    - Alpha: 0.5
+      Axes Length: 0.8
+      Axes Radius: 0.08
+      Class: rviz/Pose
+      Color: 255; 180; 180
+      Enabled: true
+      Head Length: 0.3
+      Head Radius: 0.1
+      Name: Truth Pose drone_0
+      Shaft Length: 0.7
+      Shaft Radius: 0.05
+      Shape: Arrow
+      Topic: /drone_0/truth_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.8
+      Axes Radius: 0.08
+      Class: rviz/Pose
+      Color: 64; 255; 64
+      Enabled: true
+      Head Length: 0.3
+      Head Radius: 0.1
+      Name: Pose drone_1
+      Shaft Length: 0.7
+      Shaft Radius: 0.05
+      Shape: Arrow
+      Topic: /drone_1/pose
+      Unreliable: false
+      Value: true
+    - Alpha: 0.5
+      Axes Length: 0.8
+      Axes Radius: 0.08
+      Class: rviz/Pose
+      Color: 180; 255; 180
+      Enabled: true
+      Head Length: 0.3
+      Head Radius: 0.1
+      Name: Truth Pose drone_1
+      Shaft Length: 0.7
+      Shaft Radius: 0.05
+      Shape: Arrow
+      Topic: /drone_1/truth_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.8
+      Axes Radius: 0.08
+      Class: rviz/Pose
+      Color: 64; 160; 255
+      Enabled: true
+      Head Length: 0.3
+      Head Radius: 0.1
+      Name: Pose drone_2
+      Shaft Length: 0.7
+      Shaft Radius: 0.05
+      Shape: Arrow
+      Topic: /drone_2/pose
+      Unreliable: false
+      Value: true
+    - Alpha: 0.5
+      Axes Length: 0.8
+      Axes Radius: 0.08
+      Class: rviz/Pose
+      Color: 180; 220; 255
+      Enabled: true
+      Head Length: 0.3
+      Head Radius: 0.1
+      Name: Truth Pose drone_2
+      Shaft Length: 0.7
+      Shaft Radius: 0.05
+      Shape: Arrow
+      Topic: /drone_2/truth_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 1.1
+      Axes Radius: 0.1
+      Class: rviz/Pose
+      Color: 255; 255; 0
+      Enabled: true
+      Name: Goal drone_0
+      Shape: Axes
+      Topic: /drone_0/goal
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 1.1
+      Axes Radius: 0.1
+      Class: rviz/Pose
+      Color: 0; 255; 255
+      Enabled: true
+      Name: Goal drone_1
+      Shape: Axes
+      Topic: /drone_1/goal
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 1.1
+      Axes Radius: 0.1
+      Class: rviz/Pose
+      Color: 255; 0; 255
+      Enabled: true
+      Name: Goal drone_2
+      Shape: Axes
+      Topic: /drone_2/goal
+      Unreliable: false
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Default Light: true
+    Fixed Frame: world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive Objects: true
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+    - Class: rviz/SetInitialPose
+      Theta std deviation: 0.2617994
+      Topic: /initialpose
+      X std deviation: 0.5
+      Y std deviation: 0.5
+    - Class: rviz/SetGoal
+      Topic: /drone_0/goal
+    - Class: rviz/PublishPoint
+      Single click: true
+      Topic: /clicked_point
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 22
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.06
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 2
+        Y: 0
+        Z: 1.2
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.72
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: 3.1
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1080
+  QMainWindow State: 000000ff00000000fd00000003000000000000007800000000fc0200000001fb000000100044006900730070006c0061007900730100000000ffffffff0000001e00ffffff0000000100000000000003e6fc0200000004fc00000000ffffffff0000004a0100002bfa000000020200000003fb0000001200530065006c0065006300740069006f006e0100000000ffffffff0000001e00fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000000ffffffff0000001e00fffffffb0000000a005600690065007700730100000000ffffffff0000001e00fffffffb00000014004400650070007400680020007500610076003001000000000000012c0000001e00fffffffb00000014004400650070007400680020007500610076003101000000000000012c0000001e00fffffffb00000014004400650070007400680020007500610076003201000000000000012c0000001e00ffffff000000030000000000000000fc0100000001fb0000000800540069006d00650100000000ffffffff0000004500ffffff000000000000000000000004000000040000000800000008fc00000000
+  Hide Left Dock: false
+  Hide Right Dock: false
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: true
+  Views:
+    collapsed: true
+  Width: 1920
+  X: 60
+  Y: 40
+  Depth uav0:
+    collapsed: false
+  Depth uav1:
+    collapsed: false
+  Depth uav2:
+    collapsed: false

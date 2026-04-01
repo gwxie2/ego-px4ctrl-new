@@ -27,6 +27,11 @@
   <arg name="planner_fail_safe" default="true"/>
   <arg name="planner_flight_type" default="1"/>
   <arg name="planner_realworld_experiment" default="false"/>
+  <arg name="swarm_acceptance_radius" default="-1.0"/>
+  <arg name="swarm_filter_far_trajectories" default="false"/>
+  <arg name="swarm_time_warn_threshold" default="0.25"/>
+  <arg name="swarm_time_reject_threshold" default="10.0"/>
+  <arg name="swarm_clearance" default="0.5"/>
   
   <!-- ===== Grid Map 参数 ===== -->
   <arg name="map_size_x" default="80.0"/>
@@ -134,6 +139,11 @@
     <arg name="planner_start_stable_duration" value="$(arg planner_start_stable_duration)"/>
     <arg name="planner_start_timeout" value="$(arg planner_start_timeout)"/>
     <arg name="planner_post_takeoff_delay" value="$(arg planner_post_takeoff_delay)"/>
+    <arg name="swarm_acceptance_radius" value="$(arg swarm_acceptance_radius)"/>
+    <arg name="swarm_filter_far_trajectories" value="$(arg swarm_filter_far_trajectories)"/>
+    <arg name="swarm_time_warn_threshold" value="$(arg swarm_time_warn_threshold)"/>
+    <arg name="swarm_time_reject_threshold" value="$(arg swarm_time_reject_threshold)"/>
+    <arg name="swarm_clearance" value="$(arg swarm_clearance)"/>
   </include>
 
   <!-- drone_1 runtime -->
@@ -167,6 +177,11 @@
     <arg name="planner_start_stable_duration" value="$(arg planner_start_stable_duration)"/>
     <arg name="planner_start_timeout" value="$(arg planner_start_timeout)"/>
     <arg name="planner_post_takeoff_delay" value="$(arg planner_post_takeoff_delay)"/>
+    <arg name="swarm_acceptance_radius" value="$(arg swarm_acceptance_radius)"/>
+    <arg name="swarm_filter_far_trajectories" value="$(arg swarm_filter_far_trajectories)"/>
+    <arg name="swarm_time_warn_threshold" value="$(arg swarm_time_warn_threshold)"/>
+    <arg name="swarm_time_reject_threshold" value="$(arg swarm_time_reject_threshold)"/>
+    <arg name="swarm_clearance" value="$(arg swarm_clearance)"/>
   </include>
 
   <!-- drone_2 runtime -->
@@ -200,6 +215,11 @@
     <arg name="planner_start_stable_duration" value="$(arg planner_start_stable_duration)"/>
     <arg name="planner_start_timeout" value="$(arg planner_start_timeout)"/>
     <arg name="planner_post_takeoff_delay" value="$(arg planner_post_takeoff_delay)"/>
+    <arg name="swarm_acceptance_radius" value="$(arg swarm_acceptance_radius)"/>
+    <arg name="swarm_filter_far_trajectories" value="$(arg swarm_filter_far_trajectories)"/>
+    <arg name="swarm_time_warn_threshold" value="$(arg swarm_time_warn_threshold)"/>
+    <arg name="swarm_time_reject_threshold" value="$(arg swarm_time_reject_threshold)"/>
+    <arg name="swarm_clearance" value="$(arg swarm_clearance)"/>
   </include>
   
   <!-- ========================================== -->

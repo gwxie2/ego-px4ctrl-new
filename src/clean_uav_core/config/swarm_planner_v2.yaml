@@ -51,5 +51,5 @@ optimization:
   weight_time: 10.0
   obstacle_clearance: 0.1
   obstacle_clearance_soft: 0.5
-  swarm_clearance: 0.15
+  swarm_clearance: 0.35
   record_opt: true
