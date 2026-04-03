@@ -26,7 +26,8 @@ namespace ego_planner
     int restart_nums = 0, rebound_times = 0;
     bool flag_force_return, flag_still_unsafe, flag_success, flag_swarm_too_close;
     multitopology_data_.initial_obstacles_avoided = false;
-    wei_swarm_mod_ = wei_swarm_;
+    const int swarm_priority_index = drone_id_ > 0 ? drone_id_ : 0;
+    wei_swarm_mod_ = wei_swarm_ * (1.0 + wei_swarm_symmetry_gain_ * swarm_priority_index);
 
     // Preparision 2: Trajectory related params
     t_now_ = ros::Time::now().toSec();
@@ -296,6 +297,7 @@ namespace ego_planner
       // Search from back to head
       Eigen::Vector3d in(init_points.col(segment_ids[i].second)), out(init_points.col(segment_ids[i].first));
       ASTAR_RET ret = a_star_->AstarSearch(grid_map_->getResolution(), in, out);
+      last_astar_expanded_nodes_ += a_star_->getLastExpandedNodes();
       if (ret == ASTAR_RET::SUCCESS)
       {
         a_star_pathes.push_back(a_star_->getPath());
@@ -626,6 +628,7 @@ namespace ego_planner
         /*** a star search ***/
         Eigen::Vector3d in(cps_.points.col(segment_ids[i].second)), out(cps_.points.col(segment_ids[i].first));
         ASTAR_RET ret = a_star_->AstarSearch(/*(in-out).norm()/10+0.05*/ grid_map_->getResolution(), in, out);
+        last_astar_expanded_nodes_ += a_star_->getLastExpandedNodes();
         if (ret == ASTAR_RET::SUCCESS)
         {
           a_star_pathes.push_back(a_star_->getPath());
@@ -1174,8 +1177,21 @@ namespace ego_planner
 
     opt->VirtualTGradCost(T, t, gradT, gradt, time_cost); // Real time back to virtual time
 
+    double total_cost = smoo_cost + obs_swarm_feas_qvar_costs.sum() + time_cost;
+    double grad_sq_sum = 0.0;
+    for (int index = 0; index < n; ++index)
+    {
+      grad_sq_sum += grad[index] * grad[index];
+    }
+    if (opt->iter_num_ == 0)
+    {
+      opt->last_cost_initial_ = total_cost;
+    }
+    opt->last_cost_final_ = total_cost;
+    opt->last_gradient_norm_final_ = std::sqrt(grad_sq_sum);
+
     opt->iter_num_ += 1;
-    return smoo_cost + obs_swarm_feas_qvar_costs.sum() + time_cost;
+    return total_cost;
   }
 
   int PolyTrajOptimizer::earlyExitCallback(void *func_data, const double *x, const double *g, const double fx, const double xnorm, const double gnorm, const double step, int n, int k, int ls)
@@ -1619,6 +1635,7 @@ namespace ego_planner
     nh.param("optimization/weight_obstacle", wei_obs_, -1.0);
     nh.param("optimization/weight_obstacle_soft", wei_obs_soft_, -1.0);
     nh.param("optimization/weight_swarm", wei_swarm_, -1.0);
+    nh.param("optimization/swarm_symmetry_gain", wei_swarm_symmetry_gain_, 0.0);
     nh.param("optimization/weight_feasibility", wei_feas_, -1.0);
     nh.param("optimization/weight_sqrvariance", wei_sqrvar_, -1.0);
     nh.param("optimization/weight_time", wei_time_, -1.0);

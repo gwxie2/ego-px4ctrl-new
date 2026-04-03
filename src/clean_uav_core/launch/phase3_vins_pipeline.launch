@@ -6,7 +6,8 @@
   <arg name="vehicle_num" default="2"/>
   <arg name="world_frame" default="world"/>
   <arg name="primary_odom_topic_suffix" default="vins_estimator/imu_propagate"/>
-  <arg name="enable_fallback_local_odom" default="$(eval arg('odom_mode') == 'vins_with_fallback')"/>
+  <arg name="enable_fallback_local_odom" default="$(eval arg('odom_mode') == 'vins_with_fallback' and int(arg('vehicle_num')) < 6)"/>
+  <arg name="enable_mavros_vision_pose" default="$(eval int(arg('vehicle_num')) < 6)"/>
   <arg name="primary_timeout_sec" default="0.6"/>
 
   <group if="$(arg start_vins_estimator)" ns="iris_0">
@@ -23,7 +24,7 @@
     <param name="world_frame" value="$(arg world_frame)"/>
     <param name="odom_mode" value="$(arg odom_mode)"/>
     <param name="primary_odom_topic_suffix" value="$(arg primary_odom_topic_suffix)"/>
-    <param name="enable_mavros_vision_pose" value="true"/>
+    <param name="enable_mavros_vision_pose" value="$(arg enable_mavros_vision_pose)"/>
     <param name="force_world_frame" value="true"/>
     <param name="enable_fallback_local_odom" value="$(arg enable_fallback_local_odom)"/>
     <param name="primary_timeout_sec" value="$(arg primary_timeout_sec)"/>

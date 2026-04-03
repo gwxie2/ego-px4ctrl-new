@@ -7,6 +7,7 @@
   <arg name="target_x"/>
   <arg name="target_y"/>
   <arg name="target_z"/>
+  <arg name="planner_version" default="v1"/>
   <arg name="vehicle" default="iris"/>
   <arg name="vehicle_sdf" default="iris_realsense_camera"/>
   <arg name="est" default="ekf2"/>
@@ -16,19 +17,44 @@
   <arg name="planner_max_vel" default="1.2"/>
   <arg name="planner_max_acc" default="2.8"/>
   <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="planner_planning_horizon" default="7.5"/>
+  <arg name="planner_replan_time" default="1.0"/>
+  <arg name="planner_emergency_time" default="1.0"/>
+  <arg name="planner_weight_time" default="10.0"/>
+  <arg name="planner_lambda_smooth" default="1.0"/>
   <arg name="planner_fail_safe" default="true"/>
   <arg name="planner_flight_type" default="1"/>
   <arg name="planner_realworld_experiment" default="false"/>
+  <arg name="grid_map_resolution" default="0.1"/>
   <arg name="map_size_x" default="80.0"/>
   <arg name="map_size_y" default="80.0"/>
   <arg name="map_size_z" default="5.0"/>
   <arg name="grid_map_ground_height" default="-0.01"/>
   <arg name="grid_map_odom_depth_timeout" default="2.0"/>
   <arg name="grid_map_depth_filter_mindist" default="0.1"/>
+  <arg name="grid_map_local_update_range_x" default="15.0"/>
+  <arg name="grid_map_local_update_range_y" default="15.0"/>
+  <arg name="grid_map_local_update_range_z" default="4.5"/>
   <arg name="grid_map_obstacles_inflation" default="0.45"/>
+  <arg name="swarm_acceptance_radius" default="-1.0"/>
+  <arg name="swarm_filter_far_trajectories" default="false"/>
+  <arg name="swarm_time_warn_threshold" default="0.25"/>
+  <arg name="swarm_time_reject_threshold" default="10.0"/>
+  <arg name="swarm_clearance" default="0.5"/>
+  <arg name="swarm_collision_weight" default="0.5"/>
+  <arg name="swarm_weight" default="10000.0"/>
+  <arg name="swarm_symmetry_gain" default="0.0"/>
   <arg name="hover_percent" default="0.58"/>
   <arg name="mass" default="1.2"/>
+  <arg name="px4ctrl_kp" default="4.5"/>
+  <arg name="px4ctrl_kv" default="2.0"/>
   <arg name="takeoff_delay" default="8.0"/>
+  <arg name="planner_start_z_threshold" default="0.8"/>
+  <arg name="planner_start_stable_duration" default="1.5"/>
+  <arg name="planner_start_timeout" default="60.0"/>
+  <arg name="planner_post_takeoff_delay" default="1.0"/>
+  <arg name="planner_goal_topic" default="/goal_with_id"/>
+  <arg name="planning_broadcast_topic" default="/swarm/v2/broadcast_traj"/>
 
   <include file="$(find clean_uav_core)/launch/swarm_uav_sim_instance.launch">
     <arg name="drone_id" value="$(arg drone_id)"/>
@@ -42,7 +68,7 @@
     <arg name="interactive" value="$(arg interactive)"/>
   </include>
 
-  <include file="$(find clean_uav_core)/launch/swarm_uav_runtime_instance.launch">
+  <include unless="$(eval arg('planner_version') == 'v2')" file="$(find clean_uav_core)/launch/swarm_uav_runtime_instance.launch">
     <arg name="drone_id" value="$(arg drone_id)"/>
     <arg name="init_x" value="$(arg init_x)"/>
     <arg name="init_y" value="$(arg init_y)"/>
@@ -55,18 +81,90 @@
     <arg name="planner_max_vel" value="$(arg planner_max_vel)"/>
     <arg name="planner_max_acc" value="$(arg planner_max_acc)"/>
     <arg name="planner_max_jerk" value="$(arg planner_max_jerk)"/>
+    <arg name="planner_planning_horizon" value="$(arg planner_planning_horizon)"/>
+    <arg name="planner_replan_time" value="$(arg planner_replan_time)"/>
+    <arg name="planner_emergency_time" value="$(arg planner_emergency_time)"/>
+    <arg name="planner_weight_time" value="$(arg planner_weight_time)"/>
+    <arg name="planner_lambda_smooth" value="$(arg planner_lambda_smooth)"/>
     <arg name="planner_fail_safe" value="$(arg planner_fail_safe)"/>
     <arg name="planner_flight_type" value="$(arg planner_flight_type)"/>
     <arg name="planner_realworld_experiment" value="$(arg planner_realworld_experiment)"/>
+    <arg name="grid_map_resolution" value="$(arg grid_map_resolution)"/>
     <arg name="map_size_x" value="$(arg map_size_x)"/>
     <arg name="map_size_y" value="$(arg map_size_y)"/>
     <arg name="map_size_z" value="$(arg map_size_z)"/>
     <arg name="grid_map_ground_height" value="$(arg grid_map_ground_height)"/>
     <arg name="grid_map_odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
     <arg name="grid_map_depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+    <arg name="grid_map_local_update_range_x" value="$(arg grid_map_local_update_range_x)"/>
+    <arg name="grid_map_local_update_range_y" value="$(arg grid_map_local_update_range_y)"/>
+    <arg name="grid_map_local_update_range_z" value="$(arg grid_map_local_update_range_z)"/>
     <arg name="grid_map_obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
+    <arg name="swarm_acceptance_radius" value="$(arg swarm_acceptance_radius)"/>
+    <arg name="swarm_filter_far_trajectories" value="$(arg swarm_filter_far_trajectories)"/>
+    <arg name="swarm_time_warn_threshold" value="$(arg swarm_time_warn_threshold)"/>
+    <arg name="swarm_time_reject_threshold" value="$(arg swarm_time_reject_threshold)"/>
+    <arg name="swarm_clearance" value="$(arg swarm_clearance)"/>
+    <arg name="swarm_collision_weight" value="$(arg swarm_collision_weight)"/>
     <arg name="hover_percent" value="$(arg hover_percent)"/>
     <arg name="mass" value="$(arg mass)"/>
+    <arg name="px4ctrl_kp" value="$(arg px4ctrl_kp)"/>
+    <arg name="px4ctrl_kv" value="$(arg px4ctrl_kv)"/>
     <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+    <arg name="planner_start_z_threshold" value="$(arg planner_start_z_threshold)"/>
+    <arg name="planner_start_stable_duration" value="$(arg planner_start_stable_duration)"/>
+    <arg name="planner_start_timeout" value="$(arg planner_start_timeout)"/>
+    <arg name="planner_post_takeoff_delay" value="$(arg planner_post_takeoff_delay)"/>
+  </include>
+
+  <include if="$(eval arg('planner_version') == 'v2')" file="$(find clean_uav_core)/launch/swarm_uav_runtime_instance_v2.launch">
+    <arg name="drone_id" value="$(arg drone_id)"/>
+    <arg name="init_x" value="$(arg init_x)"/>
+    <arg name="init_y" value="$(arg init_y)"/>
+    <arg name="init_z" value="$(arg init_z)"/>
+    <arg name="target_x" value="$(arg target_x)"/>
+    <arg name="target_y" value="$(arg target_y)"/>
+    <arg name="target_z" value="$(arg target_z)"/>
+    <arg name="enable_vins" value="$(arg enable_vins)"/>
+    <arg name="use_truth_odom_runtime" value="$(arg use_truth_odom_runtime)"/>
+    <arg name="planner_max_vel" value="$(arg planner_max_vel)"/>
+    <arg name="planner_max_acc" value="$(arg planner_max_acc)"/>
+    <arg name="planner_max_jerk" value="$(arg planner_max_jerk)"/>
+    <arg name="planner_planning_horizon" value="$(arg planner_planning_horizon)"/>
+    <arg name="planner_replan_time" value="$(arg planner_replan_time)"/>
+    <arg name="planner_emergency_time" value="$(arg planner_emergency_time)"/>
+    <arg name="planner_weight_time" value="$(arg planner_weight_time)"/>
+    <arg name="planner_fail_safe" value="$(arg planner_fail_safe)"/>
+    <arg name="planner_flight_type" value="$(arg planner_flight_type)"/>
+    <arg name="planner_realworld_experiment" value="$(arg planner_realworld_experiment)"/>
+    <arg name="planner_goal_topic" value="$(arg planner_goal_topic)"/>
+    <arg name="planning_broadcast_topic" value="$(arg planning_broadcast_topic)"/>
+    <arg name="grid_map_resolution" value="$(arg grid_map_resolution)"/>
+    <arg name="map_size_x" value="$(arg map_size_x)"/>
+    <arg name="map_size_y" value="$(arg map_size_y)"/>
+    <arg name="map_size_z" value="$(arg map_size_z)"/>
+    <arg name="grid_map_ground_height" value="$(arg grid_map_ground_height)"/>
+    <arg name="grid_map_odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+    <arg name="grid_map_depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+    <arg name="grid_map_local_update_range_x" value="$(arg grid_map_local_update_range_x)"/>
+    <arg name="grid_map_local_update_range_y" value="$(arg grid_map_local_update_range_y)"/>
+    <arg name="grid_map_local_update_range_z" value="$(arg grid_map_local_update_range_z)"/>
+    <arg name="grid_map_obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
+    <arg name="swarm_acceptance_radius" value="$(arg swarm_acceptance_radius)"/>
+    <arg name="swarm_filter_far_trajectories" value="$(arg swarm_filter_far_trajectories)"/>
+    <arg name="swarm_time_warn_threshold" value="$(arg swarm_time_warn_threshold)"/>
+    <arg name="swarm_time_reject_threshold" value="$(arg swarm_time_reject_threshold)"/>
+    <arg name="swarm_clearance" value="$(arg swarm_clearance)"/>
+    <arg name="swarm_weight" value="$(arg swarm_weight)"/>
+    <arg name="swarm_symmetry_gain" value="$(arg swarm_symmetry_gain)"/>
+    <arg name="hover_percent" value="$(arg hover_percent)"/>
+    <arg name="mass" value="$(arg mass)"/>
+    <arg name="px4ctrl_kp" value="$(arg px4ctrl_kp)"/>
+    <arg name="px4ctrl_kv" value="$(arg px4ctrl_kv)"/>
+    <arg name="takeoff_delay" value="$(arg takeoff_delay)"/>
+    <arg name="planner_start_z_threshold" value="$(arg planner_start_z_threshold)"/>
+    <arg name="planner_start_stable_duration" value="$(arg planner_start_stable_duration)"/>
+    <arg name="planner_start_timeout" value="$(arg planner_start_timeout)"/>
+    <arg name="planner_post_takeoff_delay" value="$(arg planner_post_takeoff_delay)"/>
   </include>
 </launch>

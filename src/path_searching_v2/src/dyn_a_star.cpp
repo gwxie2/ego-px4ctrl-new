@@ -143,6 +143,7 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
 {
     ros::Time time_1 = ros::Time::now();
     ++rounds_;
+    last_expanded_nodes_ = 0;
 
     step_size_ = step_size;
     inv_step_size_ = 1 / step_size;
@@ -152,6 +153,7 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
     if (!ConvertToIndexAndAdjustStartEndPoints(start_pt, end_pt, start_idx, end_idx))
     {
         ROS_ERROR("Unable to handle the initial or end point, force return!");
+        last_expanded_nodes_ = 0;
         return ASTAR_RET::INIT_ERR;
     }
 
@@ -195,6 +197,7 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
             // printf("\033[34mA star iter:%d, time:%.3f\033[0m\n",num_iter, (time_2 - time_1).toSec()*1000);
             // if((time_2 - time_1).toSec() > 0.1)
             //     ROS_WARN("Time consume in A star path finding is %f", (time_2 - time_1).toSec() );
+            last_expanded_nodes_ = num_iter;
             gridPath_ = retrievePath(current);
             return ASTAR_RET::SUCCESS;
         }
@@ -257,6 +260,7 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
         if ((time_2 - time_1).toSec() > 0.2)
         {
             ROS_WARN("Failed in A star path searching !!! 0.2 seconds time limit exceeded.");
+            last_expanded_nodes_ = num_iter;
             return ASTAR_RET::SEARCH_ERR;
         }
     }
@@ -266,6 +270,7 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
     if ((time_2 - time_1).toSec() > 0.1)
         ROS_WARN("Time consume in A star path finding is %.3fs, iter=%d", (time_2 - time_1).toSec(), num_iter);
 
+    last_expanded_nodes_ = num_iter;
     return ASTAR_RET::SEARCH_ERR;
 }
 

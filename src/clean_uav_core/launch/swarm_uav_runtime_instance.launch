@@ -28,24 +28,36 @@
   <arg name="swarm_time_warn_threshold" default="0.25"/>
   <arg name="swarm_time_reject_threshold" default="10.0"/>
   <arg name="swarm_clearance" default="0.5"/>
+  <arg name="swarm_collision_weight" default="0.5"/>
 
   <arg name="planner_max_vel" default="1.2"/>
   <arg name="planner_max_acc" default="2.8"/>
   <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="planner_planning_horizon" default="7.5"/>
+  <arg name="planner_replan_time" default="1.0"/>
+  <arg name="planner_emergency_time" default="1.0"/>
+  <arg name="planner_weight_time" default="10.0"/>
+  <arg name="planner_lambda_smooth" default="1.0"/>
   <arg name="planner_fail_safe" default="true"/>
   <arg name="planner_flight_type" default="1"/>
   <arg name="planner_realworld_experiment" default="false"/>
 
+  <arg name="grid_map_resolution" default="0.1"/>
   <arg name="map_size_x" default="80.0"/>
   <arg name="map_size_y" default="80.0"/>
   <arg name="map_size_z" default="5.0"/>
   <arg name="grid_map_ground_height" default="-0.01"/>
   <arg name="grid_map_odom_depth_timeout" default="2.0"/>
   <arg name="grid_map_depth_filter_mindist" default="0.1"/>
+  <arg name="grid_map_local_update_range_x" default="15.0"/>
+  <arg name="grid_map_local_update_range_y" default="15.0"/>
+  <arg name="grid_map_local_update_range_z" default="4.5"/>
   <arg name="grid_map_obstacles_inflation" default="0.45"/>
 
   <arg name="hover_percent" default="0.58"/>
   <arg name="mass" default="1.2"/>
+  <arg name="px4ctrl_kp" default="4.5"/>
+  <arg name="px4ctrl_kv" default="2.0"/>
   <arg name="takeoff_delay" default="8.0"/>
   <arg name="planner_start_z_threshold" default="0.8"/>
   <arg name="planner_start_stable_duration" default="1.5"/>
@@ -98,11 +110,11 @@
       <remap from="~grid_map/cloud" to="unused_cloud"/>
 
       <param name="fsm/flight_type" value="$(arg planner_flight_type)" type="int"/>
-      <param name="fsm/thresh_replan_time" value="1.0" type="double"/>
+      <param name="fsm/thresh_replan_time" value="$(arg planner_replan_time)" type="double"/>
       <param name="fsm/thresh_no_replan_meter" value="1.0" type="double"/>
-      <param name="fsm/planning_horizon" value="7.5" type="double"/>
+      <param name="fsm/planning_horizon" value="$(arg planner_planning_horizon)" type="double"/>
       <param name="fsm/planning_horizen_time" value="3.0" type="double"/>
-      <param name="fsm/emergency_time" value="1.0" type="double"/>
+      <param name="fsm/emergency_time" value="$(arg planner_emergency_time)" type="double"/>
       <param name="fsm/realworld_experiment" value="$(arg planner_realworld_experiment)"/>
       <param name="fsm/fail_safe" value="$(arg planner_fail_safe)"/>
       <param name="fsm/waypoint_num" value="1" type="int"/>
@@ -110,13 +122,13 @@
       <param name="fsm/waypoint0_y" value="$(arg target_y)" type="double"/>
       <param name="fsm/waypoint0_z" value="$(arg target_z)" type="double"/>
 
-      <param name="grid_map/resolution" value="0.1"/>
+      <param name="grid_map/resolution" value="$(arg grid_map_resolution)"/>
       <param name="grid_map/map_size_x" value="$(arg map_size_x)"/>
       <param name="grid_map/map_size_y" value="$(arg map_size_y)"/>
       <param name="grid_map/map_size_z" value="$(arg map_size_z)"/>
-      <param name="grid_map/local_update_range_x" value="15.0"/>
-      <param name="grid_map/local_update_range_y" value="15.0"/>
-      <param name="grid_map/local_update_range_z" value="4.5"/>
+      <param name="grid_map/local_update_range_x" value="$(arg grid_map_local_update_range_x)"/>
+      <param name="grid_map/local_update_range_y" value="$(arg grid_map_local_update_range_y)"/>
+      <param name="grid_map/local_update_range_z" value="$(arg grid_map_local_update_range_z)"/>
       <param name="grid_map/obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
       <param name="grid_map/local_map_margin" value="10"/>
       <param name="grid_map/ground_height" value="$(arg grid_map_ground_height)"/>
@@ -150,7 +162,7 @@
       <param name="manager/max_jerk" value="$(arg planner_max_jerk)" type="double"/>
       <param name="manager/control_points_distance" value="0.4" type="double"/>
       <param name="manager/feasibility_tolerance" value="0.05" type="double"/>
-      <param name="manager/planning_horizon" value="7.5" type="double"/>
+      <param name="manager/planning_horizon" value="$(arg planner_planning_horizon)" type="double"/>
       <param name="manager/use_distinctive_trajs" value="false" type="bool"/>
       <param name="manager/drone_id" value="$(arg drone_id)"/>
       <param name="swarm/acceptance_radius" value="$(arg swarm_acceptance_radius)" type="double"/>
@@ -158,8 +170,8 @@
       <param name="swarm/time_warn_threshold" value="$(arg swarm_time_warn_threshold)" type="double"/>
       <param name="swarm/time_reject_threshold" value="$(arg swarm_time_reject_threshold)" type="double"/>
 
-      <param name="optimization/lambda_smooth" value="1.0" type="double"/>
-      <param name="optimization/lambda_collision" value="0.5" type="double"/>
+      <param name="optimization/lambda_smooth" value="$(arg planner_lambda_smooth)" type="double"/>
+      <param name="optimization/lambda_collision" value="$(arg swarm_collision_weight)" type="double"/>
       <param name="optimization/lambda_feasibility" value="0.1" type="double"/>
       <param name="optimization/lambda_fitness" value="1.0" type="double"/>
       <param name="optimization/dist0" value="0.5" type="double"/>
@@ -203,6 +215,12 @@
       <param name="mass" value="$(arg mass)" type="double"/>
       <param name="hover_percent" value="$(arg hover_percent)"/>
       <param name="thrust_model/hover_percentage" value="$(arg hover_percent)" type="double"/>
+      <param name="gain/Kp0" value="$(arg px4ctrl_kp)" type="double"/>
+      <param name="gain/Kp1" value="$(arg px4ctrl_kp)" type="double"/>
+      <param name="gain/Kp2" value="$(arg px4ctrl_kp)" type="double"/>
+      <param name="gain/Kv0" value="$(arg px4ctrl_kv)" type="double"/>
+      <param name="gain/Kv1" value="$(arg px4ctrl_kv)" type="double"/>
+      <param name="gain/Kv2" value="$(arg px4ctrl_kv)" type="double"/>
     </node>
 
     <node pkg="clean_uav_core" type="takeoff_land_trigger.py" name="takeoff_trigger" output="screen">

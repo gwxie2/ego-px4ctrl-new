@@ -172,7 +172,7 @@ def main():
 
 ```bash
 # 1. 生成 launch 文件
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py \\
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
   --config {args.output} \\
   --output src/clean_uav_core/launch/swarm_top_level.launch
 
@@ -189,7 +189,7 @@ roslaunch clean_uav_core swarm_top_level.launch
     print("=" * 50)
     print("Next steps:")
     print("  1. 生成 launch 文件:")
-    print(f"     python3 src/clean_uav_core/scripts/swarm_launch_generator.py --config {args.output if args.output else 'docs/uav_position_goal.md'} --output src/clean_uav_core/launch/swarm_top_level.launch")
+    print(f"     python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py --config {args.output if args.output else 'docs/uav_position_goal.md'} --output src/clean_uav_core/launch/swarm_top_level.launch")
     print("  2. 启动仿真:")
     print("     roslaunch clean_uav_core swarm_top_level.launch")
 

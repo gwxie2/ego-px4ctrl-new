@@ -49,10 +49,11 @@ def normalize_version(version):
     return normalized
 
 
-def resolve_output_path(output_path, version):
+def resolve_output_path(output_path, version, num_uavs=None):
     workspace_root = get_workspace_root()
     if not output_path:
-        return workspace_root / "src" / "clean_uav_core" / "launch" / f"swarm_top_level_{version}.launch"
+        suffix = f"_{num_uavs}UAV" if num_uavs else ""
+        return workspace_root / "src" / "clean_uav_core" / "launch" / f"swarm_top_level_{version}{suffix}.launch"
 
     candidate = Path(output_path)
     if candidate.is_absolute():
@@ -113,8 +114,7 @@ def parse_uav_ids(config_path):
     return actual_ids
 
 
-def build_phase1_uav_configs(config_path, radius=15.0, start_z=0.10, goal_z=1.50):
-    drone_ids = parse_uav_ids(config_path)
+def _build_phase1_uav_configs_from_ids(drone_ids, radius=15.0, start_z=0.10, goal_z=1.50):
     num_uavs = len(drone_ids)
 
     if num_uavs == 1:
@@ -149,13 +149,27 @@ def build_phase1_uav_configs(config_path, radius=15.0, start_z=0.10, goal_z=1.50
     return uav_configs
 
 
+def build_phase1_uav_configs(config_path, radius=15.0, start_z=0.10, goal_z=1.50):
+    drone_ids = parse_uav_ids(config_path)
+    return _build_phase1_uav_configs_from_ids(drone_ids, radius=radius, start_z=start_z, goal_z=goal_z)
+
+
+def build_phase1_uav_configs_for_count(num_uavs, radius=15.0, start_z=0.10, goal_z=1.50):
+    if num_uavs <= 0:
+        raise ValueError(f"num_uavs must be positive, got {num_uavs}")
+
+    drone_ids = list(range(num_uavs))
+    return _build_phase1_uav_configs_from_ids(drone_ids, radius=radius, start_z=start_z, goal_z=goal_z)
+
+
 class SwarmLaunchGenerator:
     """Generate the composed top-level swarm launch file."""
 
-    def __init__(self, config_path, output_path, version):
+    def __init__(self, config_path, output_path, version, uav_count=None):
         self.config_path = config_path
         self.output_path = output_path
         self.version = normalize_version(version)
+        self.uav_count = uav_count
         self.runtime_launch = "swarm_uav_runtime_instance.launch"
         self.commander_script = "swarm_dynamic_commander.py"
         self.commander_name = "swarm_dynamic_commander"
@@ -168,8 +182,15 @@ class SwarmLaunchGenerator:
             self.commander_name = "swarm_dynamic_commander_v2"
             self.include_swarm_trigger = False
 
-        self.uav_configs = build_phase1_uav_configs(config_path)
+        self.benchmark_planner_node_name = "ego_planner_v2" if self.version == "v2" else "ego_planner"
+
+        if self.uav_count is None:
+            self.uav_configs = build_phase1_uav_configs(config_path)
+        else:
+            self.uav_configs = build_phase1_uav_configs_for_count(self.uav_count)
         self.num_uavs = len(self.uav_configs)
+        self.world_name = f"swarm_benchmark_forest_phase2_{self.num_uavs}UAV.world"
+        self.swarm_defaults = self._build_swarm_defaults()
 
         print(
             f"[Generator] Built {self.num_uavs} UAV configs for {self.version} from Phase 1 rules in {self.config_path}"
@@ -179,6 +200,31 @@ class SwarmLaunchGenerator:
         """生成缩进"""
         return "  " * level + text
 
+    def _build_swarm_defaults(self):
+          defaults = {
+              "swarm_acceptance_radius": "-1.0",
+              "swarm_filter_far_trajectories": "false",
+              "swarm_time_warn_threshold": "0.25",
+              "swarm_time_reject_threshold": "10.0",
+          }
+
+          if self.version == "v2":
+              defaults["swarm_clearance"] = "0.35"
+              defaults["swarm_weight"] = "10000.0"
+              defaults["swarm_symmetry_gain"] = "0.0"
+              if self.num_uavs >= 6:
+                  defaults["swarm_clearance"] = "0.55"
+                  defaults["swarm_weight"] = "25000.0"
+                  defaults["swarm_symmetry_gain"] = "0.03"
+          else:
+              defaults["swarm_clearance"] = "0.5"
+              defaults["swarm_collision_weight"] = "0.5"
+              if self.num_uavs >= 6:
+                  defaults["swarm_clearance"] = "0.65"
+                  defaults["swarm_collision_weight"] = "1.0"
+
+          return defaults
+
     def _generate_global_args(self):
           lines = []
           lines.append(self._indent(1, "<!-- ========================================== -->"))
@@ -186,7 +232,7 @@ class SwarmLaunchGenerator:
           lines.append(self._indent(1, "<!-- ========================================== -->"))
           lines.append(self._indent(1, ""))
 
-          lines.append(self._indent(1, "<arg name=\"world\" default=\"$(find px4)/Tools/sitl_gazebo/worlds/swarm_benchmark_forest_phase2.world\"/>"))
+          lines.append(self._indent(1, f"<arg name=\"world\" default=\"$(find px4)/Tools/sitl_gazebo/worlds/{self.world_name}\"/>"))
           lines.append(self._indent(1, "<arg name=\"gui\" default=\"false\"/>"))
           lines.append(self._indent(1, "<arg name=\"paused\" default=\"false\"/>"))
           lines.append(self._indent(1, "<arg name=\"debug\" default=\"false\"/>"))
@@ -209,12 +255,16 @@ class SwarmLaunchGenerator:
           planner_flight_type_default = "2" if self.version == "v2" else "1"
           lines.append(self._indent(1, f"<arg name=\"planner_flight_type\" default=\"{planner_flight_type_default}\"/>"))
           lines.append(self._indent(1, "<arg name=\"planner_realworld_experiment\" default=\"false\"/>"))
-          lines.append(self._indent(1, "<arg name=\"swarm_acceptance_radius\" default=\"-1.0\"/>"))
-          lines.append(self._indent(1, "<arg name=\"swarm_filter_far_trajectories\" default=\"false\"/>"))
-          lines.append(self._indent(1, "<arg name=\"swarm_time_warn_threshold\" default=\"0.25\"/>"))
-          lines.append(self._indent(1, "<arg name=\"swarm_time_reject_threshold\" default=\"10.0\"/>"))
-          swarm_clearance_default = "0.35" if self.version == "v2" else "0.5"
-          lines.append(self._indent(1, f"<arg name=\"swarm_clearance\" default=\"{swarm_clearance_default}\"/>"))
+          lines.append(self._indent(1, f"<arg name=\"swarm_acceptance_radius\" default=\"{self.swarm_defaults['swarm_acceptance_radius']}\"/>"))
+          lines.append(self._indent(1, f"<arg name=\"swarm_filter_far_trajectories\" default=\"{self.swarm_defaults['swarm_filter_far_trajectories']}\"/>"))
+          lines.append(self._indent(1, f"<arg name=\"swarm_time_warn_threshold\" default=\"{self.swarm_defaults['swarm_time_warn_threshold']}\"/>"))
+          lines.append(self._indent(1, f"<arg name=\"swarm_time_reject_threshold\" default=\"{self.swarm_defaults['swarm_time_reject_threshold']}\"/>"))
+          lines.append(self._indent(1, f"<arg name=\"swarm_clearance\" default=\"{self.swarm_defaults['swarm_clearance']}\"/>"))
+          if self.version == "v2":
+              lines.append(self._indent(1, f"<arg name=\"swarm_weight\" default=\"{self.swarm_defaults['swarm_weight']}\"/>"))
+              lines.append(self._indent(1, f"<arg name=\"swarm_symmetry_gain\" default=\"{self.swarm_defaults['swarm_symmetry_gain']}\"/>"))
+          else:
+              lines.append(self._indent(1, f"<arg name=\"swarm_collision_weight\" default=\"{self.swarm_defaults['swarm_collision_weight']}\"/>"))
           lines.append(self._indent(1, ""))
 
           if self.version == "v2":
@@ -239,6 +289,19 @@ class SwarmLaunchGenerator:
               lines.append(self._indent(1, "<arg name=\"manual_take_over_joy_dev_v2\" default=\"/dev/input/js0\"/>"))
               lines.append(self._indent(1, "<arg name=\"odom_visualization_scale_v2\" default=\"0.35\"/>"))
               lines.append(self._indent(1, ""))
+
+          lines.append(self._indent(1, "<!-- ===== Benchmark Suite ===== -->"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_enable\" default=\"false\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_output_dir\" default=\"$(env HOME)/swarm_benchmark/data\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_record_rosbag\" default=\"true\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_low_speed_threshold\" default=\"0.1\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_low_speed_duration\" default=\"2.0\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_goal_distance_threshold\" default=\"0.5\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_stop_after_terminal_sec\" default=\"2.0\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_safety_margin_threshold\" default=\"$(arg swarm_clearance)\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_actuator_saturation_threshold\" default=\"0.9\"/>"))
+          lines.append(self._indent(1, "<arg name=\"benchmark_default_vmax\" default=\"10.0\"/>"))
+          lines.append(self._indent(1, ""))
 
           lines.append(self._indent(1, "<!-- ===== Grid Map 参数 ===== -->"))
           lines.append(self._indent(1, "<arg name=\"map_size_x\" default=\"80.0\"/>"))
@@ -361,8 +424,12 @@ class SwarmLaunchGenerator:
             lines.append(self._indent(2, "<arg name=\"swarm_time_reject_threshold\" value=\"$(arg swarm_time_reject_threshold)\"/>"))
             lines.append(self._indent(2, "<arg name=\"swarm_clearance\" value=\"$(arg swarm_clearance)\"/>"))
             if self.version == "v2":
+                lines.append(self._indent(2, "<arg name=\"swarm_weight\" value=\"$(arg swarm_weight)\"/>"))
+                lines.append(self._indent(2, "<arg name=\"swarm_symmetry_gain\" value=\"$(arg swarm_symmetry_gain)\"/>"))
                 lines.append(self._indent(2, "<arg name=\"planner_goal_topic\" value=\"$(arg planner_goal_topic)\"/>"))
                 lines.append(self._indent(2, "<arg name=\"planning_broadcast_topic\" value=\"$(arg planning_broadcast_topic_v2)\"/>"))
+            else:
+                lines.append(self._indent(2, "<arg name=\"swarm_collision_weight\" value=\"$(arg swarm_collision_weight)\"/>"))
 
             lines.append(self._indent(1, "</include>"))
             lines.append(self._indent(1, ""))
@@ -405,6 +472,46 @@ class SwarmLaunchGenerator:
         else:
             lines.append(self._indent(2, "<param name=\"goal_topic\" value=\"$(arg planner_goal_topic)\"/>"))
         lines.append(self._indent(1, "</node>"))
+        lines.append(self._indent(1, ""))
+        return lines
+
+    def _generate_benchmark_manager(self):
+        lines = []
+        goal_xs = ",".join(f"{self.uav_configs[drone_id]['goal']['x']}" for drone_id in sorted(self.uav_configs.keys()))
+        goal_ys = ",".join(f"{self.uav_configs[drone_id]['goal']['y']}" for drone_id in sorted(self.uav_configs.keys()))
+        goal_zs = ",".join(f"{self.uav_configs[drone_id]['goal']['z']}" for drone_id in sorted(self.uav_configs.keys()))
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, "<!-- Benchmark Suite                             -->"))
+        lines.append(self._indent(1, "<!-- ========================================== -->"))
+        lines.append(self._indent(1, ""))
+        lines.append(self._indent(1, "<group if=\"$(arg benchmark_enable)\" ns=\"benchmark\">"))
+        lines.append(self._indent(2, "<node pkg=\"clean_uav_core\" type=\"benchmark_manager.py\" name=\"benchmark_manager\" output=\"screen\">"))
+        lines.append(self._indent(3, f"<param name=\"planner_node_name\" value=\"{self.benchmark_planner_node_name}\"/>"))
+        lines.append(self._indent(3, f"<param name=\"drone_count\" value=\"{self.num_uavs}\"/>"))
+        lines.append(self._indent(3, "<param name=\"output_dir\" value=\"$(arg benchmark_output_dir)\"/>"))
+        lines.append(self._indent(3, "<param name=\"record_rosbag\" value=\"$(arg benchmark_record_rosbag)\"/>"))
+        lines.append(self._indent(3, "<param name=\"low_speed_threshold\" value=\"$(arg benchmark_low_speed_threshold)\"/>"))
+        lines.append(self._indent(3, "<param name=\"low_speed_duration\" value=\"$(arg benchmark_low_speed_duration)\"/>"))
+        lines.append(self._indent(3, "<param name=\"goal_distance_threshold\" value=\"$(arg benchmark_goal_distance_threshold)\"/>"))
+        lines.append(self._indent(3, "<param name=\"stop_after_terminal_sec\" value=\"$(arg benchmark_stop_after_terminal_sec)\"/>"))
+        lines.append(self._indent(3, "<param name=\"safety_margin_threshold\" value=\"$(arg benchmark_safety_margin_threshold)\"/>"))
+        lines.append(self._indent(3, "<param name=\"actuator_saturation_threshold\" value=\"$(arg benchmark_actuator_saturation_threshold)\"/>"))
+        lines.append(self._indent(3, "<param name=\"default_vmax\" value=\"$(arg benchmark_default_vmax)\"/>"))
+        lines.append(self._indent(3, f"<param name=\"default_drone_ids\" value=\"{','.join(str(drone_id) for drone_id in sorted(self.uav_configs.keys()))}\"/>"))
+        lines.append(self._indent(3, f"<param name=\"default_goal_xs\" value=\"{goal_xs}\"/>"))
+        lines.append(self._indent(3, f"<param name=\"default_goal_ys\" value=\"{goal_ys}\"/>"))
+        lines.append(self._indent(3, f"<param name=\"default_goal_zs\" value=\"{goal_zs}\"/>"))
+        lines.append(self._indent(3, "<param name=\"odom_topic_template\" value=\"/drone_%d/odom\"/>"))
+        lines.append(self._indent(3, "<param name=\"position_cmd_topic_template\" value=\"/drone_%d/position_cmd\"/>"))
+        lines.append(self._indent(3, f"<param name=\"replan_info_topic_template\" value=\"/drone_%d/{self.benchmark_planner_node_name}/planning/replan_info\"/>"))
+        lines.append(self._indent(3, f"<param name=\"planner_event_topic_template\" value=\"/drone_%d/{self.benchmark_planner_node_name}/planning/benchmark_event\"/>"))
+        lines.append(self._indent(3, f"<param name=\"safety_topic_template\" value=\"/drone_%d/{self.benchmark_planner_node_name}/grid_map/occupancy_inflate\"/>"))
+        lines.append(self._indent(3, "<param name=\"attitude_topic_template\" value=\"/iris_%d/mavros/setpoint_raw/attitude\"/>"))
+        lines.append(self._indent(3, "<param name=\"mavros_state_topic_template\" value=\"/iris_%d/mavros/state\"/>"))
+        lines.append(self._indent(3, "<param name=\"extrinsic_topic_template\" value=\"/drone_%d/vins_estimator/extrinsic\"/>"))
+        lines.append(self._indent(3, "<param name=\"px4_debug_topic_template\" value=\"/drone_%d/px4ctrl/debugPx4ctrl\"/>"))
+        lines.append(self._indent(2, "</node>"))
+        lines.append(self._indent(1, "</group>"))
         lines.append(self._indent(1, ""))
         return lines
 
@@ -519,6 +626,7 @@ class SwarmLaunchGenerator:
         lines.extend(self._generate_uav_instances())
         lines.extend(self._generate_swarm_trigger())
         lines.extend(self._generate_dynamic_commander())
+        lines.extend(self._generate_benchmark_manager())
         lines.extend(self._generate_v2_goal_tooling())
         lines.extend(self._generate_v2_moving_obstacles())
         lines.extend(self._generate_v2_manual_take_over())
@@ -534,10 +642,10 @@ class SwarmLaunchGenerator:
 
         if "topic_tools/relay" in xml_content:
             raise ValueError("generated launch unexpectedly contains topic_tools/relay")
-        if re.search(r"<group\s+ns=\"iris_|/iris_", xml_content):
+        if re.search(r"<group\s+ns=\"iris_", xml_content):
             raise ValueError("generated launch unexpectedly contains iris_* runtime namespaces")
 
-        output_path = Path(self.output_path)
+        output_path = Path(resolve_output_path(self.output_path, self.version, self.num_uavs))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with output_path.open("w", encoding="utf-8") as handle:
@@ -553,22 +661,26 @@ def main():
     parser.add_argument("--config", type=str, default="", help="Path to the drone configuration markdown file")
     parser.add_argument("--output", type=str, default="", help="Path to the generated launch file")
     parser.add_argument("--version", type=str, default="v1", choices=SUPPORTED_VERSIONS, help="Planner stack version to generate")
+    parser.add_argument("--uav-count", type=int, default=0, help="Override the UAV count and synthesize configs directly")
 
     args = parser.parse_args()
 
     config_path = resolve_config_path(args.config)
-    output_path = resolve_output_path(args.output, args.version)
+    requested_uav_count = args.uav_count if args.uav_count > 0 else None
+    output_path = resolve_output_path(args.output, args.version, requested_uav_count)
 
     print("=" * 70)
     print("Swarm Launch Generator")
     print("=" * 70)
     print(f"Workspace root: {get_workspace_root()}")
     print(f"Planner version: {args.version}")
+    if requested_uav_count is not None:
+        print(f"UAV count override: {requested_uav_count}")
     print(f"Config file: {config_path}")
     print(f"Output file: {output_path}")
     print("=" * 70)
 
-    generator = SwarmLaunchGenerator(config_path, output_path, args.version)
+    generator = SwarmLaunchGenerator(config_path, output_path, args.version, requested_uav_count)
     generator.save()
 
     print("=" * 70)

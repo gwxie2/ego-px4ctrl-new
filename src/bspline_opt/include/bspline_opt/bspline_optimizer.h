@@ -124,6 +124,18 @@ namespace ego_planner
 
     inline int getOrder(void) { return order_; }
     inline double getSwarmClearance(void) { return swarm_clearance_; }
+    inline int getIterNum(void) const { return iter_num_; }
+    inline void resetLastPlanDiagnostics()
+    {
+      last_astar_expanded_nodes_ = 0;
+      last_gradient_norm_final_ = 0.0;
+      last_cost_initial_ = 0.0;
+      last_cost_final_ = 0.0;
+    }
+    inline int getLastAStarExpandedNodes(void) const { return last_astar_expanded_nodes_; }
+    inline double getLastGradientNormFinal(void) const { return last_gradient_norm_final_; }
+    inline double getLastCostInitial(void) const { return last_cost_initial_; }
+    inline double getLastCostFinal(void) const { return last_cost_final_; }
 
   private:
     GridMap::Ptr grid_map_;
@@ -168,6 +180,10 @@ namespace ego_planner
     int iter_num_;                  // iteration of the solver
     Eigen::VectorXd best_variable_; //
     double min_cost_;               //
+    int last_astar_expanded_nodes_{0};
+    double last_gradient_norm_final_{0.0};
+    double last_cost_initial_{0.0};
+    double last_cost_final_{0.0};
 
     Eigen::Vector3d local_target_pt_; 
 

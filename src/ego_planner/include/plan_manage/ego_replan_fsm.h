@@ -7,12 +7,15 @@
 #include <nav_msgs/Path.h>
 #include <sensor_msgs/Imu.h>
 #include <ros/ros.h>
+#include <stdint.h>
 #include <std_msgs/Empty.h>
 #include <vector>
 #include <visualization_msgs/Marker.h>
 
 #include <bspline_opt/bspline_optimizer.h>
 #include <plan_env/grid_map.h>
+#include <quadrotor_msgs/PlannerBenchmarkEvent.h>
+#include <quadrotor_msgs/PlannerReplanInfo.h>
 #include <traj_utils/Bspline.h>
 #include <traj_utils/MultiBsplines.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -87,7 +90,10 @@ namespace ego_planner
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
     ros::Subscriber waypoint_sub_, odom_sub_, swarm_trajs_sub_, broadcast_bspline_sub_, trigger_sub_;
-    ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_, swarm_trajs_pub_, broadcast_bspline_pub_;
+    ros::Publisher replan_pub_, event_pub_, new_pub_, bspline_pub_, data_disp_pub_, swarm_trajs_pub_, broadcast_bspline_pub_;
+
+    void publishReplanInfo(bool success);
+    void publishBenchmarkEvent(uint8_t event_type, FSM_EXEC_STATE previous_state, FSM_EXEC_STATE current_state, const string &caller, bool success = false);
 
     /* helper functions */
     bool callReboundReplan(bool flag_use_poly_init, bool flag_randomPolyTraj); // front-end and back-end method
@@ -115,6 +121,10 @@ namespace ego_planner
 
     bool checkCollision();
     void publishSwarmTrajs(bool startup_pub);
+
+    uint8_t replan_trigger_reason_{0};
+  uint32_t replan_count_{0};
+    ros::Time last_replan_info_stamp_;
 
   public:
     EGOReplanFSM(/* args */)

@@ -1,0 +1,16 @@
+string session_name
+int32[] drone_ids
+float64[] goal_x
+float64[] goal_y
+float64[] goal_z
+float64 v_max
+float64 stop_speed_threshold
+float64 stop_duration_sec
+float64 goal_distance_threshold
+bool record_rosbag
+string output_dir
+string[] rosbag_topics
+---
+bool accepted
+string session_id
+string message

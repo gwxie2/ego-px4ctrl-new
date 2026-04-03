@@ -28,24 +28,36 @@
   <arg name="swarm_time_warn_threshold" default="0.25"/>
   <arg name="swarm_time_reject_threshold" default="10.0"/>
   <arg name="swarm_clearance" default="0.35"/>
+  <arg name="swarm_weight" default="10000.0"/>
+  <arg name="swarm_symmetry_gain" default="0.0"/>
 
   <arg name="planner_max_vel" default="1.2"/>
   <arg name="planner_max_acc" default="2.8"/>
   <arg name="planner_max_jerk" default="4.0"/>
+  <arg name="planner_planning_horizon" default="7.5"/>
+  <arg name="planner_replan_time" default="1.0"/>
+  <arg name="planner_emergency_time" default="1.0"/>
+  <arg name="planner_weight_time" default="10.0"/>
   <arg name="planner_fail_safe" default="true"/>
   <arg name="planner_flight_type" default="2"/>
   <arg name="planner_realworld_experiment" default="false"/>
 
+  <arg name="grid_map_resolution" default="0.1"/>
   <arg name="map_size_x" default="80.0"/>
   <arg name="map_size_y" default="80.0"/>
   <arg name="map_size_z" default="5.0"/>
   <arg name="grid_map_ground_height" default="-0.01"/>
   <arg name="grid_map_odom_depth_timeout" default="2.0"/>
   <arg name="grid_map_depth_filter_mindist" default="0.1"/>
+  <arg name="grid_map_local_update_range_x" default="15.0"/>
+  <arg name="grid_map_local_update_range_y" default="15.0"/>
+  <arg name="grid_map_local_update_range_z" default="4.5"/>
   <arg name="grid_map_obstacles_inflation" default="0.45"/>
 
   <arg name="hover_percent" default="0.58"/>
   <arg name="mass" default="1.2"/>
+  <arg name="px4ctrl_kp" default="4.5"/>
+  <arg name="px4ctrl_kv" default="2.0"/>
   <arg name="takeoff_delay" default="8.0"/>
   <arg name="planner_start_z_threshold" default="0.8"/>
   <arg name="planner_start_stable_duration" default="1.5"/>
@@ -102,6 +114,9 @@
       <rosparam command="load" file="$(find clean_uav_core)/config/swarm_planner_v2.yaml"/>
 
       <param name="fsm/flight_type" value="$(arg planner_flight_type)" type="int"/>
+      <param name="fsm/thresh_replan_time" value="$(arg planner_replan_time)" type="double"/>
+      <param name="fsm/planning_horizon" value="$(arg planner_planning_horizon)" type="double"/>
+      <param name="fsm/emergency_time" value="$(arg planner_emergency_time)" type="double"/>
       <param name="fsm/realworld_experiment" value="$(arg planner_realworld_experiment)"/>
       <param name="fsm/fail_safe" value="$(arg planner_fail_safe)"/>
       <param name="fsm/waypoint_num" value="1" type="int"/>
@@ -109,9 +124,13 @@
       <param name="fsm/waypoint0_y" value="$(arg target_y)" type="double"/>
       <param name="fsm/waypoint0_z" value="$(arg target_z)" type="double"/>
 
+      <param name="grid_map/resolution" value="$(arg grid_map_resolution)"/>
       <param name="grid_map/map_size_x" value="$(arg map_size_x)"/>
       <param name="grid_map/map_size_y" value="$(arg map_size_y)"/>
       <param name="grid_map/map_size_z" value="$(arg map_size_z)"/>
+      <param name="grid_map/local_update_range_x" value="$(arg grid_map_local_update_range_x)"/>
+      <param name="grid_map/local_update_range_y" value="$(arg grid_map_local_update_range_y)"/>
+      <param name="grid_map/local_update_range_z" value="$(arg grid_map_local_update_range_z)"/>
       <param name="grid_map/ground_height" value="$(arg grid_map_ground_height)"/>
       <param name="grid_map/odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
       <param name="grid_map/depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
@@ -119,12 +138,16 @@
 
       <param name="manager/max_vel" value="$(arg planner_max_vel)" type="double"/>
       <param name="manager/max_acc" value="$(arg planner_max_acc)" type="double"/>
+      <param name="manager/planning_horizon" value="$(arg planner_planning_horizon)" type="double"/>
       <param name="manager/drone_id" value="$(arg drone_id)"/>
       <param name="swarm/acceptance_radius" value="$(arg swarm_acceptance_radius)" type="double"/>
       <param name="swarm/filter_far_trajectories" value="$(arg swarm_filter_far_trajectories)" type="bool"/>
       <param name="swarm/time_warn_threshold" value="$(arg swarm_time_warn_threshold)" type="double"/>
       <param name="swarm/time_reject_threshold" value="$(arg swarm_time_reject_threshold)" type="double"/>
 
+      <param name="optimization/weight_swarm" value="$(arg swarm_weight)" type="double"/>
+      <param name="optimization/weight_time" value="$(arg planner_weight_time)" type="double"/>
+      <param name="optimization/swarm_symmetry_gain" value="$(arg swarm_symmetry_gain)" type="double"/>
       <param name="optimization/swarm_clearance" value="$(arg swarm_clearance)" type="double"/>
       <param name="optimization/max_vel" value="$(arg planner_max_vel)" type="double"/>
       <param name="optimization/max_acc" value="$(arg planner_max_acc)" type="double"/>
@@ -158,6 +181,12 @@
       <param name="mass" value="$(arg mass)" type="double"/>
       <param name="hover_percent" value="$(arg hover_percent)"/>
       <param name="thrust_model/hover_percentage" value="$(arg hover_percent)" type="double"/>
+      <param name="gain/Kp0" value="$(arg px4ctrl_kp)" type="double"/>
+      <param name="gain/Kp1" value="$(arg px4ctrl_kp)" type="double"/>
+      <param name="gain/Kp2" value="$(arg px4ctrl_kp)" type="double"/>
+      <param name="gain/Kv0" value="$(arg px4ctrl_kv)" type="double"/>
+      <param name="gain/Kv1" value="$(arg px4ctrl_kv)" type="double"/>
+      <param name="gain/Kv2" value="$(arg px4ctrl_kv)" type="double"/>
     </node>
 
     <node pkg="clean_uav_core" type="takeoff_land_trigger.py" name="takeoff_trigger" output="screen">

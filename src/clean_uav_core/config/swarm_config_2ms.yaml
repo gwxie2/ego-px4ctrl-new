@@ -1,0 +1,78 @@
+# =============================================================
+# 2m/s 级安全基线 YAML
+#
+# 用法：
+# python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
+#   --version v1 \
+#   --swarm-config src/clean_uav_core/config/swarm_config_2ms.yaml
+#
+# 说明：
+# - 文件名按“2m/s 档”命名，便于分类管理。
+# - 具体参数严格按你给出的 Original 安全基准表填写，因此 max_vel 仍为 1.5 m/s。
+# - mission_profiles 只保留 original，方便直接使用生成器默认 --profile original。
+# =============================================================
+
+simulation:
+  world_path: "swarm_benchmark_forest_phase1.world"
+  gui: false
+  use_rviz: true
+  enable_vins: false
+  use_truth_odom_runtime: true
+
+physical_uav:
+  # 仿真机体质量；实机更换机体时要同步改这里。
+  mass: 1.2
+
+  # 悬停油门基准；漂浮或下沉明显时先调这个。
+  hover_percent: 0.58
+
+  pid_gain:
+    # 位置环刚性保持与现有默认一致。
+    Kp: 4.5
+
+    # 速度环使用你给出的低速安全档基线值。
+    Kv: 1.5
+
+planning_base:
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+  resolution: 0.1
+  ground_height: -0.01
+  odom_depth_timeout: 0.5
+  grid_map_depth_filter_mindist: 0.1
+
+  # local_update 对应表中的 10m，这里映射到 x/y 两个水平更新范围。
+  local_update_range_x: 10.0
+  local_update_range_y: 10.0
+
+  # z 方向仍保持仓库内常用值 4.5m，避免无意义增大垂向地图成本。
+  local_update_range_z: 4.5
+
+mission_profiles:
+  original:
+    # ===== 物理极限 =====
+    max_vel: 1.5
+    max_acc: 2.0
+
+    # jerk 未在表中单列，这里沿用 2 * max_acc 的保守经验值。
+    max_jerk: 4.0
+
+    # ===== 感知与前瞻 =====
+    planning_horizon: 7.5
+    replan_time: 1.0
+    emergency_time: 1.0
+
+    # ===== MINCO 优化 =====
+    weight_time: 10.0
+    lambda_smooth: 1.0
+
+    # ===== 避障 =====
+    grid_map_obstacles_inflation: 0.4
+    swarm_clearance: 0.5
+
+    # 下列三项不在你给的表里，但生成器需要完整 profile。
+    # 这里保留仓库当前低速默认策略。
+    swarm_collision_weight: 0.5
+    swarm_weight: 10000.0
+    swarm_symmetry_gain: 0.0

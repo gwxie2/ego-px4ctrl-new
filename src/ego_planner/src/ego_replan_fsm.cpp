@@ -69,6 +69,8 @@ namespace ego_planner
 
     bspline_pub_ = nh.advertise<traj_utils::Bspline>("planning/bspline", 10);
     data_disp_pub_ = nh.advertise<traj_utils::DataDisp>("planning/data_display", 100);
+    replan_pub_ = nh.advertise<quadrotor_msgs::PlannerReplanInfo>("planning/replan_info", 10);
+    event_pub_ = nh.advertise<quadrotor_msgs::PlannerBenchmarkEvent>("planning/benchmark_event", 20);
 
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
     {
@@ -215,6 +217,8 @@ namespace ego_planner
   void EGOReplanFSM::triggerCallback(const geometry_msgs::PoseStampedPtr &msg)
   {
     have_trigger_ = true;
+    replan_trigger_reason_ = quadrotor_msgs::PlannerReplanInfo::TRIGGER_TARGET;
+    publishBenchmarkEvent(quadrotor_msgs::PlannerBenchmarkEvent::EVENT_TRIGGER_RECEIVED, exec_state_, exec_state_, "TRIG", true);
     cout << "Triggered!" << endl;
     init_pt_ = odom_pos_;
   }
@@ -225,6 +229,8 @@ namespace ego_planner
       return;
 
     cout << "Triggered!" << endl;
+    replan_trigger_reason_ = quadrotor_msgs::PlannerReplanInfo::TRIGGER_MANUAL;
+    publishBenchmarkEvent(quadrotor_msgs::PlannerBenchmarkEvent::EVENT_TRIGGER_RECEIVED, exec_state_, exec_state_, "WAYPOINT", true);
     // trigger_ = true;
     init_pt_ = odom_pos_;
 
@@ -522,6 +528,50 @@ namespace ego_planner
     int pre_s = int(exec_state_);
     exec_state_ = new_state;
     cout << "[" + pos_call + "]: from " + state_str[pre_s] + " to " + state_str[int(new_state)] << endl;
+    publishBenchmarkEvent(
+        quadrotor_msgs::PlannerBenchmarkEvent::EVENT_STATE_TRANSITION,
+        static_cast<FSM_EXEC_STATE>(pre_s),
+        new_state,
+        pos_call,
+        true);
+  }
+
+  void EGOReplanFSM::publishBenchmarkEvent(uint8_t event_type, FSM_EXEC_STATE previous_state, FSM_EXEC_STATE current_state, const string &caller, bool success)
+  {
+    quadrotor_msgs::PlannerBenchmarkEvent msg;
+    msg.header.stamp = ros::Time::now();
+    msg.drone_id = planner_manager_->pp_.drone_id;
+    msg.trajectory_id = planner_manager_->local_data_.traj_id_;
+    msg.event_type = event_type;
+    msg.trigger_reason = replan_trigger_reason_;
+    msg.success = success;
+    msg.goal_distance = have_target_ ? (odom_pos_ - end_pt_).norm() : -1.0;
+    msg.caller = caller;
+
+    auto encode_state = [](FSM_EXEC_STATE state) -> uint8_t {
+      switch (state)
+      {
+      case INIT:
+        return quadrotor_msgs::PlannerBenchmarkEvent::STATE_INIT;
+      case WAIT_TARGET:
+        return quadrotor_msgs::PlannerBenchmarkEvent::STATE_WAIT_TARGET;
+      case GEN_NEW_TRAJ:
+        return quadrotor_msgs::PlannerBenchmarkEvent::STATE_GEN_NEW_TRAJ;
+      case REPLAN_TRAJ:
+        return quadrotor_msgs::PlannerBenchmarkEvent::STATE_REPLAN_TRAJ;
+      case EXEC_TRAJ:
+        return quadrotor_msgs::PlannerBenchmarkEvent::STATE_EXEC_TRAJ;
+      case EMERGENCY_STOP:
+        return quadrotor_msgs::PlannerBenchmarkEvent::STATE_EMERGENCY_STOP;
+      case SEQUENTIAL_START:
+        return quadrotor_msgs::PlannerBenchmarkEvent::STATE_SEQUENTIAL_START;
+      }
+      return quadrotor_msgs::PlannerBenchmarkEvent::STATE_INIT;
+    };
+
+    msg.previous_state = encode_state(previous_state);
+    msg.current_state = encode_state(current_state);
+    event_pub_.publish(msg);
   }
 
   std::pair<int, EGOReplanFSM::FSM_EXEC_STATE> EGOReplanFSM::timesOfConsecutiveStateCalls()
@@ -678,6 +728,7 @@ namespace ego_planner
         {
           have_target_ = false;
           have_trigger_ = false;
+          publishBenchmarkEvent(quadrotor_msgs::PlannerBenchmarkEvent::EVENT_GOAL_REACHED, exec_state_, exec_state_, "FSM", true);
 
           if ( target_type_ == TARGET_TYPE::PRESET_TARGET )
           {
@@ -691,11 +742,13 @@ namespace ego_planner
         }
         else if ((end_pt_ - pos).norm() > no_replan_thresh_ && t_cur > replan_thresh_)
         {
+          replan_trigger_reason_ = quadrotor_msgs::PlannerReplanInfo::TRIGGER_TIME;
           changeFSMExecState(REPLAN_TRAJ, "FSM");
         }
       }
       else if (t_cur > replan_thresh_)
       {
+        replan_trigger_reason_ = quadrotor_msgs::PlannerReplanInfo::TRIGGER_TIME;
         changeFSMExecState(REPLAN_TRAJ, "FSM");
       }
 
@@ -850,11 +903,13 @@ namespace ego_planner
           if (t - t_cur < emergency_time_) // 0.8s of emergency time
           {
             ROS_WARN("Suddenly discovered obstacles. emergency stop! time=%f", t - t_cur);
+              replan_trigger_reason_ = quadrotor_msgs::PlannerReplanInfo::TRIGGER_COLLISION;
             changeFSMExecState(EMERGENCY_STOP, "SAFETY");
           }
           else
           {
             //ROS_WARN("current traj in collision, replan.");
+              replan_trigger_reason_ = quadrotor_msgs::PlannerReplanInfo::TRIGGER_COLLISION;
             changeFSMExecState(REPLAN_TRAJ, "SAFETY");
           }
           return;
@@ -923,7 +978,35 @@ namespace ego_planner
       visualization_->displayOptimalList(info->position_traj_.get_control_points(), 0);
     }
 
+    publishReplanInfo(plan_and_refine_success);
     return plan_and_refine_success;
+  }
+
+  void EGOReplanFSM::publishReplanInfo(bool success)
+  {
+    quadrotor_msgs::PlannerReplanInfo msg;
+    msg.header.stamp = ros::Time::now();
+    msg.drone_id = planner_manager_->pp_.drone_id;
+    msg.trajectory_id = planner_manager_->local_data_.traj_id_;
+    msg.replan_count = ++replan_count_;
+    msg.success = success;
+    msg.touch_goal = (local_target_pt_ - end_pt_).norm() < 1e-3;
+    msg.iter_count = planner_manager_->getLastReplanIterCount();
+    msg.time_search_ms = planner_manager_->getLastReplanSearchMs();
+    msg.time_optimize_ms = planner_manager_->getLastReplanOptimizeMs();
+    msg.time_adjust_ms = planner_manager_->getLastReplanAdjustMs();
+    msg.time_total_ms = planner_manager_->getLastReplanTotalMs();
+    msg.replan_interval_ms = last_replan_info_stamp_.isZero() ? 0.0 : (msg.header.stamp - last_replan_info_stamp_).toSec() * 1000.0;
+    msg.local_target_distance = (start_pt_ - local_target_pt_).norm();
+    msg.trigger_reason = replan_trigger_reason_;
+    msg.failure_reason = planner_manager_->getLastFailureReason();
+    msg.a_star_expanded_nodes = planner_manager_->getLastAStarExpandedNodes();
+    msg.gradient_norm_final = planner_manager_->getLastGradientNormFinal();
+    msg.cost_initial = planner_manager_->getLastCostInitial();
+    msg.cost_final = planner_manager_->getLastCostFinal();
+    last_replan_info_stamp_ = msg.header.stamp;
+    replan_pub_.publish(msg);
+    publishBenchmarkEvent(quadrotor_msgs::PlannerBenchmarkEvent::EVENT_PLAN_RESULT, exec_state_, exec_state_, "REPLAN_INFO", success);
   }
 
   void EGOReplanFSM::publishSwarmTrajs(bool startup_pub)

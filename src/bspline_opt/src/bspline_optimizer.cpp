@@ -514,10 +514,12 @@ namespace ego_planner
       Eigen::Vector3d in(init_points.col(segment_ids[i].first)), out(init_points.col(segment_ids[i].second));
       if (a_star_->AstarSearch(/*(in-out).norm()/10+0.05*/ 0.1, in, out))
       {
+        last_astar_expanded_nodes_ += a_star_->getLastExpandedNodes();
         a_star_pathes.push_back(a_star_->getPath());
       }
       else
       {
+        last_astar_expanded_nodes_ += a_star_->getLastExpandedNodes();
         ROS_ERROR("a star error, force return!");
         vector<std::pair<int, int>> blank_ret;
         return blank_ret;
@@ -753,6 +755,17 @@ namespace ego_planner
 
     double cost;
     opt->combineCostRebound(x, grad, cost, n);
+    double grad_sq_sum = 0.0;
+    for (int index = 0; index < n; ++index)
+    {
+      grad_sq_sum += grad[index] * grad[index];
+    }
+    if (opt->iter_num_ == 0)
+    {
+      opt->last_cost_initial_ = cost;
+    }
+    opt->last_cost_final_ = cost;
+    opt->last_gradient_norm_final_ = std::sqrt(grad_sq_sum);
 
     opt->iter_num_ += 1;
     return cost;
@@ -764,6 +777,17 @@ namespace ego_planner
 
     double cost;
     opt->combineCostRefine(x, grad, cost, n);
+    double grad_sq_sum = 0.0;
+    for (int index = 0; index < n; ++index)
+    {
+      grad_sq_sum += grad[index] * grad[index];
+    }
+    if (opt->iter_num_ == 0)
+    {
+      opt->last_cost_initial_ = cost;
+    }
+    opt->last_cost_final_ = cost;
+    opt->last_gradient_norm_final_ = std::sqrt(grad_sq_sum);
 
     opt->iter_num_ += 1;
     return cost;
@@ -1274,10 +1298,12 @@ namespace ego_planner
         Eigen::Vector3d in(cps_.points.col(segment_ids[i].first)), out(cps_.points.col(segment_ids[i].second));
         if (a_star_->AstarSearch(/*(in-out).norm()/10+0.05*/ 0.1, in, out))
         {
+          last_astar_expanded_nodes_ += a_star_->getLastExpandedNodes();
           a_star_pathes.push_back(a_star_->getPath());
         }
         else
         {
+          last_astar_expanded_nodes_ += a_star_->getLastExpandedNodes();
           ROS_ERROR("a star error");
           segment_ids.erase(segment_ids.begin() + i);
           i--;

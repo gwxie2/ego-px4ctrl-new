@@ -48,6 +48,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   nav_msgs
   geometry_msgs
+  std_msgs
   message_generation
 )
 
@@ -65,7 +66,9 @@ add_message_files(
   Corrections.msg
   Gains.msg
   OutputData.msg
+  PlannerBenchmarkEvent.msg
   PositionCommand.msg
+  PlannerReplanInfo.msg
   Px4ctrlDebug.msg
   PPROutputData.msg
   Serial.msg
@@ -83,6 +86,7 @@ generate_messages(
     DEPENDENCIES
     geometry_msgs
     nav_msgs
+  std_msgs
 )
 
 catkin_package(
@@ -90,7 +94,7 @@ catkin_package(
   LIBRARIES encode_msgs decode_msgs
   #CATKIN_DEPENDS geometry_msgs nav_msgs
   #DEPENDS system_lib
-  CATKIN_DEPENDS message_runtime
+  CATKIN_DEPENDS message_runtime std_msgs
 )
 
 # add_executable(test_exe src/test_exe.cpp)

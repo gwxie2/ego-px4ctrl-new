@@ -70,6 +70,7 @@ private:
 	const double tie_breaker_ = 1.0 + 1.0 / 10000;
 
 	std::vector<GridNodePtr> gridPath_;
+	int last_expanded_nodes_{0};
 
 	GridNodePtr ***GridNodeMap_;
 	std::priority_queue<GridNodePtr, std::vector<GridNodePtr>, NodeComparator> openSet_;
@@ -87,6 +88,7 @@ public:
 	bool AstarSearch(const double step_size, Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
 
 	std::vector<Eigen::Vector3d> getPath();
+	inline int getLastExpandedNodes() const { return last_expanded_nodes_; }
 };
 
 inline double AStar::getHeu(GridNodePtr node1, GridNodePtr node2)

@@ -17,7 +17,7 @@ V2 sandbox 的设计目标是：
 ```bash
 cd /home/guanwen/XTDrone/ego-px4ctrl-new
 source tools/source_phase1_env.sh
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py --version v2
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py --version v2
 ```
 
 默认输出：
@@ -192,7 +192,7 @@ V2 当前组合场景运行矩阵：
 - `src/clean_uav_core/launch/swarm_moving_obstacles_v2.launch`
 - `src/clean_uav_core/config/swarm_planner_v2.yaml`
 - `src/clean_uav_core/scripts/swarm_dynamic_commander_v2.py`
-- `src/clean_uav_core/scripts/swarm_launch_generator.py`
+- `src/clean_uav_core/scripts/swarm_launch_generator_yaml.py`
 - `test_swarm_v2_smoke.sh`
 - `test_swarm_v2_runtime_health.sh`
 - `test_swarm_v2_runtime_matrix.sh`

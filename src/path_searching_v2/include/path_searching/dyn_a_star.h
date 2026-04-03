@@ -82,6 +82,7 @@ private:
 	std::priority_queue<GridNodePtr, std::vector<GridNodePtr>, NodeComparator> openSet_;
 
 	int rounds_{0};
+	int last_expanded_nodes_{0};
 
 public:
 	typedef std::shared_ptr<AStar> Ptr;
@@ -94,6 +95,7 @@ public:
 	ASTAR_RET AstarSearch(const double step_size, Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
 
 	std::vector<Eigen::Vector3d> getPath();
+	inline int getLastExpandedNodes() const { return last_expanded_nodes_; }
 };
 
 inline double AStar::getHeu(GridNodePtr node1, GridNodePtr node2)

@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros
   mavros_msgs
   nav_msgs
+  message_generation
   quadrotor_msgs
   roscpp
   rospy
@@ -61,11 +62,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  BenchmarkStartSession.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -75,10 +75,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   nav_msgs#   quadrotor_msgs#   sensor_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -112,7 +112,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES clean_uav_core
-#  CATKIN_DEPENDS gazebo_msgs geometry_msgs mavros nav_msgs quadrotor_msgs roscpp rospy sensor_msgs std_msgs
+  CATKIN_DEPENDS gazebo_msgs geometry_msgs mavros mavros_msgs nav_msgs quadrotor_msgs roscpp rospy sensor_msgs std_msgs message_runtime
 #  DEPENDS system_lib
 )
 
@@ -172,12 +172,14 @@ catkin_install_python(PROGRAMS
   scripts/dual_traj_start_trigger.py
   scripts/goal_point_publisher.py
   scripts/mission_progress_monitor.py
+  scripts/benchmark_manager.py
   scripts/multi_vins_bridge.py
   scripts/odom_pose_adapter.py
   scripts/px4_param_bootstrap.py
   scripts/swarm_dynamic_commander.py
   scripts/swarm_dynamic_commander_v2.py
   scripts/swarm_launch_generator.py
+  scripts/swarm_launch_generator_yaml.py
   scripts/swarm_traj_trigger.py
   scripts/traj_start_trigger.py
   scripts/truth_odom_adapter.py

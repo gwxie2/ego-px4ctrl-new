@@ -1,0 +1,34 @@
+Header header
+int32 drone_id
+uint32 trajectory_id
+uint32 replan_count
+bool success
+bool touch_goal
+int32 iter_count
+float64 time_search_ms
+float64 time_optimize_ms
+float64 time_adjust_ms
+float64 time_total_ms
+float64 replan_interval_ms
+float64 local_target_distance
+uint8 trigger_reason
+uint8 failure_reason
+uint32 a_star_expanded_nodes
+float64 gradient_norm_final
+float64 cost_initial
+float64 cost_final
+
+uint8 TRIGGER_UNKNOWN=0
+uint8 TRIGGER_TARGET=1
+uint8 TRIGGER_COLLISION=2
+uint8 TRIGGER_TIME=3
+uint8 TRIGGER_MANUAL=4
+
+uint8 FAILURE_NONE=0
+uint8 FAILURE_CLOSE_TO_GOAL=1
+uint8 FAILURE_INIT_FAILED=2
+uint8 FAILURE_OPTIMIZER_FAILED=3
+uint8 FAILURE_COLLISION=4
+uint8 FAILURE_TIMEOUT=5
+uint8 FAILURE_EMERGENCY_STOP=6
+uint8 FAILURE_UNKNOWN=255

@@ -52,6 +52,16 @@ namespace ego_planner
     bool setLocalTrajFromOpt(const poly_traj::MinJerkOpt &opt, const bool touch_goal);
     inline double getSwarmClearance(void) { return ploy_traj_opt_->get_swarm_clearance_(); }
     inline int getCpsNumPrePiece(void) { return ploy_traj_opt_->get_cps_num_prePiece_(); }
+    inline double getLastReplanSearchMs(void) const { return last_replan_search_ms_; }
+    inline double getLastReplanOptimizeMs(void) const { return last_replan_optimize_ms_; }
+    inline double getLastReplanAdjustMs(void) const { return last_replan_adjust_ms_; }
+    inline double getLastReplanTotalMs(void) const { return last_replan_total_ms_; }
+    inline int getLastReplanIterCount(void) const { return last_replan_iter_count_; }
+    inline uint8_t getLastFailureReason(void) const { return last_failure_reason_; }
+    inline int getLastAStarExpandedNodes(void) const { return last_astar_expanded_nodes_; }
+    inline double getLastGradientNormFinal(void) const { return last_gradient_norm_final_; }
+    inline double getLastCostInitial(void) const { return last_cost_initial_; }
+    inline double getLastCostFinal(void) const { return last_cost_final_; }
     // inline PtsChk_t getPtsCheck(void) { return ploy_traj_opt_->get_pts_check_(); }
 
     PlanParameters pp_;
@@ -64,6 +74,17 @@ namespace ego_planner
     PolyTrajOptimizer::Ptr ploy_traj_opt_;
 
     int continous_failures_count_{0};
+
+    double last_replan_search_ms_{0.0};
+    double last_replan_optimize_ms_{0.0};
+    double last_replan_adjust_ms_{0.0};
+    double last_replan_total_ms_{0.0};
+    int last_replan_iter_count_{0};
+    uint8_t last_failure_reason_{0};
+    int last_astar_expanded_nodes_{0};
+    double last_gradient_norm_final_{0.0};
+    double last_cost_initial_{0.0};
+    double last_cost_final_{0.0};
 
   public:
     typedef unique_ptr<EGOPlannerManager> Ptr;

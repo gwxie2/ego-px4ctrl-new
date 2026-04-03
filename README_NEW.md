@@ -33,7 +33,7 @@
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  顶层 Launch (swarm_top_level.launch)                   │
-│  - 由 swarm_launch_generator.py 自动生成               │
+│  - 由 swarm_launch_generator_yaml.py 自动生成          │
 └─────────────────────────────────────────────────────────┘
                           │
         ┌─────────────────┼─────────────────┐
@@ -97,7 +97,7 @@ cd /home/guanwen/XTDrone/ego-px4ctrl-new
 source tools/source_phase1_env.sh
 
 # 生成 V2 顶层 launch
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py --version v2
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py --version v2
 
 # 启动 V2 主链
 roslaunch clean_uav_core swarm_top_level_v2.launch gui:=false
@@ -128,6 +128,7 @@ roslaunch clean_uav_core swarm_top_level_v2.launch gui:=false enable_manual_take
 V2 详细说明见：
 
 - `docs/swarm_v2_sandbox_CN.md`
+- `docs/swarm_yaml_workflow_CN.md`
 
 ### 5 分钟快速启动（3 机示例）
 
@@ -137,11 +138,13 @@ cd /home/guanwen/XTDrone/ego-px4ctrl-new
 source tools/source_phase1_env.sh
 
 # 2. 生成 launch 文件（3 机）
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py
 
 # 3. 启动仿真
 roslaunch clean_uav_core swarm_top_level.launch gui:=false
 ```
+
+默认生成会同时刷新 `swarm_top_level_v1.launch`、`swarm_top_level.launch` 和旧的 `swarm_top_level_v1_3UAV/4UAV/5UAV/6UAV.launch` 兼容文件。更完整的 YAML 工作流说明见 `docs/swarm_yaml_workflow_CN.md`。
 
 **预期结果**：
 - Gazebo 启动并显示 3 架无人机
@@ -156,6 +159,12 @@ roslaunch clean_uav_core swarm_top_level.launch gui:=false
 ### `docs/uav_position_goal.md`
 
 核心配置文件，定义每架无人机的起点和终点。
+
+### `src/clean_uav_core/config/swarm_config.yaml`
+
+共享实验配置文件，定义仿真世界、基础地图参数、物理机体参数以及 mission profile。新生成器默认从这里读取 `simulation`、`planning_base`、`physical_uav` 和 `mission_profiles`，再把参数映射到 V1/V2 启动链路。
+
+关于字段含义、默认输出规则、`--profile` 和兼容 `3UAV/4UAV/5UAV/6UAV` 生成行为，见 `docs/swarm_yaml_workflow_CN.md`。
 
 #### 格式说明
 
@@ -246,7 +255,7 @@ source devel/setup.bash
 cat docs/uav_position_goal.md
 
 # 生成 launch 文件
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py \
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
   --config docs/uav_position_goal.md \
   --output src/clean_uav_core/launch/swarm_top_level.launch
 
@@ -313,7 +322,7 @@ cat > docs/test_single_uav.md << EOF
 EOF
 
 # 2. 生成 launch 文件
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py \
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
   --config docs/test_single_uav.md \
   --output src/clean_uav_core/launch/test_single.launch
 
@@ -337,7 +346,7 @@ cat > docs/test_dual_uav.md << EOF
 EOF
 
 # 2. 生成并启动
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py \
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
   --config docs/test_dual_uav.md \
   --output src/clean_uav_core/launch/test_dual.launch
 roslaunch clean_uav_core test_dual.launch gui:=false
@@ -658,9 +667,10 @@ src/clean_uav_core/
 ├── scripts/
 │   ├── swarm_dynamic_commander.py         # 动态目标命令器
 │   ├── swarm_traj_trigger.py              # 同步轨迹触发器
-│   └── swarm_launch_generator.py          # Launch 生成器
+│   └── swarm_launch_generator_yaml.py     # YAML Launch 生成器
 └── config/
-    └── phase1_px4ctrl_no_rc.yaml          # px4ctrl 配置
+  ├── phase1_px4ctrl_no_rc.yaml          # px4ctrl 配置
+  └── swarm_config.yaml                  # 共享 mission profile 配置
 ```
 
 ---
@@ -683,7 +693,7 @@ cat > /tmp/test_single.md << 'EOF'
 - `drone_0`: start=(0.0,0.0,0.1,0.0), goal=(3.0,0.0,1.0,0.0)
 EOF
 
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py \
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
   --config /tmp/test_single.md \
   --output src/clean_uav_core/launch/test_single.launch
 
@@ -700,7 +710,7 @@ cat > /tmp/test_dual.md << 'EOF'
 - `drone_1`: start=(0.0,-2.0,0.1,0.0), goal=(8.0,-2.0,1.0,0.0)
 EOF
 
-python3 src/clean_uav_core/scripts/swarm_launch_generator.py \
+python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
   --config /tmp/test_dual.md \
   --output src/clean_uav_core/launch/test_dual.launch
 

@@ -120,6 +120,7 @@ bool AStar::ConvertToIndexAndAdjustStartEndPoints(Vector3d start_pt, Vector3d en
 
 bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_pt)
 {
+    last_expanded_nodes_ = 0;
     ros::Time time_1 = ros::Time::now();
     ++rounds_;
 
@@ -175,6 +176,7 @@ bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_
             // if((time_2 - time_1).toSec() > 0.1)
             //     ROS_WARN("Time consume in A star path finding is %f", (time_2 - time_1).toSec() );
             gridPath_ = retrievePath(current);
+            last_expanded_nodes_ = num_iter;
             return true;
         }
         current->state = GridNode::CLOSEDSET; //move current node from open set to closed set.
@@ -236,6 +238,7 @@ bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_
         if ((time_2 - time_1).toSec() > 0.2)
         {
             ROS_WARN("Failed in A star path searching !!! 0.2 seconds time limit exceeded.");
+            last_expanded_nodes_ = num_iter;
             return false;
         }
     }
@@ -245,6 +248,7 @@ bool AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d end_
     if ((time_2 - time_1).toSec() > 0.1)
         ROS_WARN("Time consume in A star path finding is %.3fs, iter=%d", (time_2 - time_1).toSec(), num_iter);
 
+    last_expanded_nodes_ = num_iter;
     return false;
 }
 

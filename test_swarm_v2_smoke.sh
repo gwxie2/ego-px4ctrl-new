@@ -12,7 +12,7 @@ echo "Swarm V2 Smoke Test"
 echo "=========================================="
 
 echo "[1/5] Generate V2 top-level launch"
-/usr/bin/python3 src/clean_uav_core/scripts/swarm_launch_generator.py --version v2 >/dev/null
+/usr/bin/python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py --version v2 >/dev/null
 test -f src/clean_uav_core/launch/swarm_top_level_v2.launch
 
 echo "[2/5] Validate base V2 node graph"

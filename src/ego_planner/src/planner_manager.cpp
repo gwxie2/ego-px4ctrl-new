@@ -1,6 +1,7 @@
 // #include <fstream>
 #include <plan_manage/planner_manager.h>
 #include <thread>
+#include <quadrotor_msgs/PlannerReplanInfo.h>
 #include "visualization_msgs/Marker.h" // zx-todo
 
 namespace ego_planner
@@ -52,6 +53,21 @@ namespace ego_planner
   {
     const double dist_to_local_target = (start_pt - local_target_pt).norm();
 
+    bspline_optimizer_->resetLastPlanDiagnostics();
+
+    auto record_metrics = [&](double search_ms, double optimize_ms, double adjust_ms, int iter_count, uint8_t failure_reason) {
+      last_replan_search_ms_ = search_ms;
+      last_replan_optimize_ms_ = optimize_ms;
+      last_replan_adjust_ms_ = adjust_ms;
+      last_replan_total_ms_ = search_ms + optimize_ms + adjust_ms;
+      last_replan_iter_count_ = iter_count;
+      last_failure_reason_ = failure_reason;
+      last_astar_expanded_nodes_ = bspline_optimizer_->getLastAStarExpandedNodes();
+      last_gradient_norm_final_ = bspline_optimizer_->getLastGradientNormFinal();
+      last_cost_initial_ = bspline_optimizer_->getLastCostInitial();
+      last_cost_final_ = bspline_optimizer_->getLastCostFinal();
+    };
+
     if (dist_to_local_target < 0.2)
     {
       ROS_WARN_THROTTLE(
@@ -59,6 +75,7 @@ namespace ego_planner
           "[drone %d] Close to goal, skip rebound replan. dist=%.3f",
           pp_.drone_id,
           dist_to_local_target);
+      record_metrics(0.0, 0.0, 0.0, 0, quadrotor_msgs::PlannerReplanInfo::FAILURE_CLOSE_TO_GOAL);
       continous_failures_count_++;
       return false;
     }
@@ -73,6 +90,11 @@ namespace ego_planner
 
     ros::Time t_start = ros::Time::now();
     ros::Duration t_init, t_opt, t_refine;
+    int best_iter_count = 0;
+    int best_astar_expanded_nodes = 0;
+    double best_gradient_norm_final = 0.0;
+    double best_cost_initial = 0.0;
+    double best_cost_final = 0.0;
 
     /*** STEP 1: INIT ***/
     double ts = (start_pt - local_target_pt).norm() > 0.1 ? pp_.ctrl_pt_dist / pp_.max_vel_ * 1.5 : pp_.ctrl_pt_dist / pp_.max_vel_ * 5; // pp_.ctrl_pt_dist / pp_.max_vel_ is too tense, and will surely exceed the acc/vel limits
@@ -179,6 +201,7 @@ namespace ego_planner
             else
             {
               ROS_ERROR("pseudo_arc_length is empty, return!");
+              record_metrics(0.0, 0.0, 0.0, 0, quadrotor_msgs::PlannerReplanInfo::FAILURE_INIT_FAILED);
               continous_failures_count_++;
               return false;
             }
@@ -246,6 +269,7 @@ namespace ego_planner
       {
         if (bspline_optimizer_->BsplineOptimizeTrajRebound(ctrl_pts_temp, final_cost, trajs[i], ts))
         {
+          const int candidate_iter_count = bspline_optimizer_->getIterNum();
 
           cout << "traj " << trajs.size() - i << " success." << endl;
 
@@ -254,6 +278,11 @@ namespace ego_planner
           {
             min_cost = final_cost;
             ctrl_pts = ctrl_pts_temp;
+            best_iter_count = candidate_iter_count;
+            best_astar_expanded_nodes = bspline_optimizer_->getLastAStarExpandedNodes();
+            best_gradient_norm_final = bspline_optimizer_->getLastGradientNormFinal();
+            best_cost_initial = bspline_optimizer_->getLastCostInitial();
+            best_cost_final = bspline_optimizer_->getLastCostFinal();
           }
 
           // visualization
@@ -285,6 +314,26 @@ namespace ego_planner
     cout << "plan_success=" << flag_step_1_success << endl;
     if (!flag_step_1_success)
     {
+      if (pp_.use_distinctive_trajs)
+      {
+        last_astar_expanded_nodes_ = best_astar_expanded_nodes;
+        last_gradient_norm_final_ = best_gradient_norm_final;
+        last_cost_initial_ = best_cost_initial;
+        last_cost_final_ = best_cost_final;
+      }
+      record_metrics(
+          t_init.toSec() * 1000.0,
+          t_opt.toSec() * 1000.0,
+          0.0,
+          best_iter_count,
+          quadrotor_msgs::PlannerReplanInfo::FAILURE_OPTIMIZER_FAILED);
+      if (pp_.use_distinctive_trajs)
+      {
+        last_astar_expanded_nodes_ = best_astar_expanded_nodes;
+        last_gradient_norm_final_ = best_gradient_norm_final;
+        last_cost_initial_ = best_cost_initial;
+        last_cost_final_ = best_cost_final;
+      }
       visualization_->displayOptimalList(ctrl_pts, 0);
       continous_failures_count_++;
       return false;
@@ -326,6 +375,31 @@ namespace ego_planner
 
     // save planned results
     updateTrajInfo(pos, ros::Time::now());
+
+    if (best_iter_count == 0)
+    {
+      best_iter_count = bspline_optimizer_->getIterNum();
+    }
+    if (pp_.use_distinctive_trajs)
+    {
+      last_astar_expanded_nodes_ = best_astar_expanded_nodes;
+      last_gradient_norm_final_ = best_gradient_norm_final;
+      last_cost_initial_ = best_cost_initial;
+      last_cost_final_ = best_cost_final;
+    }
+    record_metrics(
+        t_init.toSec() * 1000.0,
+        t_opt.toSec() * 1000.0,
+        t_refine.toSec() * 1000.0,
+        best_iter_count,
+        quadrotor_msgs::PlannerReplanInfo::FAILURE_NONE);
+    if (pp_.use_distinctive_trajs)
+    {
+      last_astar_expanded_nodes_ = best_astar_expanded_nodes;
+      last_gradient_norm_final_ = best_gradient_norm_final;
+      last_cost_initial_ = best_cost_initial;
+      last_cost_final_ = best_cost_final;
+    }
 
     static double sum_time = 0;
     static int count_success = 0;

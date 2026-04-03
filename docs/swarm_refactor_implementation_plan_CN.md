@@ -1,5 +1,7 @@
 # Swarm 多机启动架构重构实施计划
 
+说明：这是一份历史实施计划文档。文中多处提到的 `swarm_launch_generator.py`，在当前仓库里已经以新的 `src/clean_uav_core/scripts/swarm_launch_generator_yaml.py` 形态落地；现行使用方式优先参考 `README_NEW.md` 和 `docs/swarm_yaml_workflow_CN.md`。
+
 ## 1. 目标
 
 本次重构目标是把当前基于临时 Python 生成大段 XML 的 swarm 多机启动方案，替换为一套可维护、可迁移、可部署到真实分布式机载电脑的工业级 ROS 架构。
@@ -211,7 +213,7 @@
 
 - 一个结构清晰、参数自洽、接口稳定的 `swarm_uav_instance.launch`
 
-### Phase B：重写 `swarm_launch_generator.py`
+### Phase B：重写 `swarm_launch_generator.py`（当前已由 `swarm_launch_generator_yaml.py` 落地）
 
 目标：让生成器只负责组装，不再负责底层 XML 细节。
 
@@ -240,7 +242,7 @@
 
 输出：
 
-- 轻量、可维护、只生成组装层的 `swarm_launch_generator.py`
+- 轻量、可维护、只生成组装层的生成器；当前仓库中的对应实现为 `swarm_launch_generator_yaml.py`
 
 ### Phase C：修复 `swarm_dynamic_commander.py`
 
@@ -321,7 +323,7 @@
 - MAVROS 告警参数显式设置
 - 不再依赖顶层传端口 / fcu_url 作为真值
 
-### 7.2 `swarm_launch_generator.py`
+### 7.2 `swarm_launch_generator.py`（现行实现入口：`swarm_launch_generator_yaml.py`）
 
 重构后应具备：
 
@@ -343,7 +345,7 @@
 
 - `swarm_uav_instance.launch` 中不存在明显命名空间分裂逻辑
 - `swarm_vins_pipeline.launch` 中不存在 `topic_tools/relay`
-- `swarm_launch_generator.py` 和 `swarm_dynamic_commander.py` 中不存在目录回溯式路径猜测
+- 现行的 `swarm_launch_generator_yaml.py` 和 `swarm_dynamic_commander.py` 中不存在目录回溯式路径猜测
 - `swarm_top_level.launch` 中不再内嵌底层 Spawn/MAVROS 大段结构
 
 ### 8.2 运行标准

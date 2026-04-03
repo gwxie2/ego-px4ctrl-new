@@ -1,0 +1,220 @@
+# =============================================================
+# Swarm Mission Profiles - YAML-driven generator source of truth
+#
+# 使用方式：
+# 1. 这是共享配置入口，供 swarm_launch_generator_yaml.py 读取。
+# 2. simulation / physical_uav / planning_base 是所有 profile 共用的基础项。
+# 3. mission_profiles 下的每个 profile 表示一组速度等级和调参策略。
+# 4. 修改完后，建议重新执行：
+#    python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py --version v1
+#    python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py --version v2
+#
+# 调参总原则：
+# - 想飞得更快：优先联动 max_vel / max_acc / replan_time / planning_horizon。
+# - 想让轨迹更稳：优先联动 lambda_smooth / Kv / inflation。
+# - 想让群体避碰更保守：优先增大 swarm_clearance / swarm_weight。
+# - 想减少犹豫和绕行：适度提高 weight_time，但不要一上来就设得过高。
+# =============================================================
+
+simulation:
+  # world_path:
+  # - 含义：Gazebo 默认 world 文件。
+  # - 填写规则：写 world 文件名，或 clean_uav_core/ 下的相对路径；不要写绝对路径。
+  # - 调整建议：
+  #   - 更换林地/障碍密度时改这里。
+  #   - 改 world 后最好同步检查 uav_position_goal.md 的起终点是否还在可飞区域内。
+  world_path: "swarm_benchmark_forest_phase1.world"
+
+  # gui:
+  # - 含义：是否默认打开 Gazebo 图形界面。
+  # - 调整建议：批量测试或 CI 用 false；人工观察碰撞与轨迹时改 true。
+  gui: false
+
+  # use_rviz:
+  # - 含义：是否默认启动 RViz。
+  # - 调整建议：调规划与群体轨迹时建议 true；纯压力测试可关掉节省资源。
+  use_rviz: true
+
+  # enable_vins:
+  # - 含义：是否默认走 VINS 相关链路。
+  # - 调整建议：纯仿真 truth odom 场景保持 false；只有明确测试 VINS 时再开启。
+  enable_vins: false
+
+  # use_truth_odom_runtime:
+  # - 含义：运行时是否优先使用真值里程计。
+  # - 调整建议：仿真基线、集群回归测试建议 true；切到感知链路验证时再关。
+  use_truth_odom_runtime: true
+
+physical_uav:
+  # mass:
+  # - 含义：控制器使用的机体质量估计，直接影响推力解算。
+  # - 调整建议：
+  #   - 仿真和实机不一致时，这里必须跟着改。
+  #   - 质量偏小常导致上冲，偏大常导致拖沓和升力不足感。
+  mass: 1.2
+
+  # hover_percent:
+  # - 含义：悬停油门百分比，是 px4ctrl 推力模型的重要基准。
+  # - 调整建议：
+  #   - 起飞后持续缓慢下沉，适当增大。
+  #   - 起飞后持续上飘，适当减小。
+  hover_percent: 0.58
+
+  pid_gain:
+    # Kp:
+    # - 含义：位置环比例增益，会影响位置误差拉回速度。
+    # - 调整建议：
+    #   - 太小：轨迹跟踪发软，转弯拖尾。
+    #   - 太大：高频抖动、加减速生硬。
+    Kp: 4.5
+
+    # Kv:
+    # - 含义：速度环比例增益，会影响速度响应和“刚性”。
+    # - 调整建议：
+    #   - 高速档通常需要更大的 Kv，避免速度跟不上规划器。
+    #   - 如果出现明显震荡，先回退 Kv，再增大 lambda_smooth。
+    Kv: 2.0
+
+planning_base:
+  # map_size_x / map_size_y / map_size_z:
+  # - 含义：局部地图体素图尺寸。
+  # - 调整建议：
+  #   - 场景稀疏且飞行距离长时可增大 x/y。
+  #   - 不要盲目放大，否则内存和更新开销会上升。
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+
+  # resolution:
+  # - 含义：体素分辨率，越小越精细。
+  # - 调整建议：
+  #   - 更小的 resolution 会提升障碍表达精度，但 CPU 开销更高。
+  #   - 室外大场景通常从 0.1 开始调，不建议随意降到很小。
+  resolution: 0.1
+
+  # ground_height:
+  # - 含义：地面高度偏置，用于地图与地面参考对齐。
+  # - 调整建议：地面总被误判成障碍时可微调该值。
+  ground_height: -0.01
+
+  # odom_depth_timeout:
+  # - 含义：深度/里程计同步超时时间。
+  # - 调整建议：
+  #   - 数据链路稳定时可减小，提高“过期数据剔除”强度。
+  #   - 链路存在延迟时可适当放宽，避免地图频繁空洞。
+  odom_depth_timeout: 0.5
+
+  # grid_map_depth_filter_mindist:
+  # - 含义：深度滤波最小距离，小于该值的点会被过滤。
+  # - 调整建议：近距离噪点多时增大；需要贴近障碍飞行时不要设太大。
+  grid_map_depth_filter_mindist: 0.1
+
+  # local_update_range_x / y / z:
+  # - 含义：每次局部地图更新的有效范围。
+  # - 调整建议：
+  #   - 高速场景优先增大 x/y，让规划器更早看到前方障碍。
+  #   - z 一般不用和 x/y 同比例放大，除非有明显的大高度机动。
+  local_update_range_x: 15.0
+  local_update_range_y: 15.0
+  local_update_range_z: 4.5
+
+mission_profiles:
+  # original:
+  # - 含义：偏安全、偏保守的默认基线。
+  # - 适用：回归测试、初次联调、真值 odom 基线验证。
+  original:
+    # max_vel / max_acc / max_jerk:
+    # - 含义：规划器物理上限。
+    # - 调整建议：
+    #   - 提 max_vel 时，通常也要一起提 max_acc 和 Kv。
+    #   - max_jerk 一般可先取约 2 * max_acc，避免过硬突变。
+    max_vel: 1.5
+    max_acc: 2.0
+    max_jerk: 4.0
+
+    # planning_horizon:
+    # - 含义：规划前瞻距离，越大越“看得远”。
+    # - 调整建议：速度越高，通常越需要更大的 horizon。
+    planning_horizon: 7.5
+
+    # replan_time / emergency_time:
+    # - 含义：常规重规划周期与紧急反应时间窗。
+    # - 调整建议：
+    #   - replan_time 越小，决策越频繁，但 CPU 压力越大。
+    #   - emergency_time 要略小于或等于 replan_time，才能体现紧急收敛。
+    replan_time: 1.0
+    emergency_time: 1.0
+
+    # weight_time:
+    # - 含义：MINCO 优化中的时间代价权重。
+    # - 调整建议：
+    #   - 增大后会更偏向“尽快到达”。
+    #   - 过大可能导致轨迹更激进、转弯更急。
+    weight_time: 10.0
+
+    # lambda_smooth:
+    # - 含义：平滑正则项权重。
+    # - 调整建议：
+    #   - 高速场景下通常要比低速场景更大。
+    #   - 如果轨迹有抖动、折线感或 jerk 很大，优先增大它。
+    lambda_smooth: 1.0
+
+    # grid_map_obstacles_inflation:
+    # - 含义：障碍膨胀半径。
+    # - 调整建议：
+    #   - 越大越保守，越不容易贴障碍飞。
+    #   - 越小越容易走窄缝，但需要更高定位与控制精度。
+    grid_map_obstacles_inflation: 0.4
+
+    # swarm_clearance:
+    # - 含义：群体避碰的最小安全间距。
+    # - 调整建议：
+    #   - 速度越高，通常要留更大 clearance。
+    #   - 若集群交汇时频繁贴近，优先增大它。
+    swarm_clearance: 0.5
+
+    # swarm_collision_weight / swarm_weight / swarm_symmetry_gain:
+    # - 含义：群体优化中的碰撞、群体和对称破局相关权重。
+    # - 调整建议：
+    #   - V1 更关注 swarm_collision_weight。
+    #   - V2 更关注 swarm_weight 与 swarm_symmetry_gain。
+    #   - symmetry_gain 只建议小步调整，否则容易引入明显偏置。
+    swarm_collision_weight: 0.5
+    swarm_weight: 10000.0
+    swarm_symmetry_gain: 0.0
+
+  # fast:
+  # - 含义：中高速实验档，适合 5m/s 量级前的验证。
+  # - 适用：中速机动、宽场景穿越、V2 进阶实验。
+  fast:
+    max_vel: 5.0
+    max_acc: 4.5
+    max_jerk: 9.0
+    planning_horizon: 15.0
+    replan_time: 0.5
+    emergency_time: 0.8
+    weight_time: 80.0
+    lambda_smooth: 2.5
+    grid_map_obstacles_inflation: 0.3
+    swarm_clearance: 0.6
+    swarm_collision_weight: 0.7
+    swarm_weight: 15000.0
+    swarm_symmetry_gain: 0.01
+
+  # extreme:
+  # - 含义：高风险科研档，面向 10m/s 量级探索。
+  # - 适用：只有在感知、控制和算力都已经验证过的前提下再使用。
+  extreme:
+    max_vel: 10.0
+    max_acc: 8.0
+    max_jerk: 16.0
+    planning_horizon: 25.0
+    replan_time: 0.1
+    emergency_time: 0.5
+    weight_time: 300.0
+    lambda_smooth: 8.0
+    grid_map_obstacles_inflation: 0.25
+    swarm_clearance: 0.9
+    swarm_collision_weight: 1.0
+    swarm_weight: 25000.0
+    swarm_symmetry_gain: 0.03

@@ -7,6 +7,7 @@
 #include <nav_msgs/Path.h>
 #include <sensor_msgs/Imu.h>
 #include <ros/ros.h>
+#include <stdint.h>
 #include <std_msgs/Empty.h>
 #include <std_msgs/Float64.h>
 #include <vector>
@@ -16,6 +17,8 @@
 #include <plan_env/grid_map.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <quadrotor_msgs/GoalSet.h>
+#include <quadrotor_msgs/PlannerBenchmarkEvent.h>
+#include <quadrotor_msgs/PlannerReplanInfo.h>
 #include <traj_utils_v2/DataDisp.h>
 #include <plan_manage/planner_manager.h>
 #include <traj_utils/planning_visualization.h>
@@ -91,7 +94,10 @@ namespace ego_planner
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
     ros::Subscriber waypoint_sub_, odom_sub_, trigger_sub_, broadcast_ploytraj_sub_, mandatory_stop_sub_;
-    ros::Publisher poly_traj_pub_, data_disp_pub_, broadcast_ploytraj_pub_, heartbeat_pub_, ground_height_pub_;
+    ros::Publisher replan_pub_, event_pub_, poly_traj_pub_, data_disp_pub_, broadcast_ploytraj_pub_, heartbeat_pub_, ground_height_pub_;
+
+    void publishReplanInfo(bool success);
+    void publishBenchmarkEvent(uint8_t event_type, FSM_EXEC_STATE previous_state, FSM_EXEC_STATE current_state, const string &caller, bool success = false);
 
     /* state machine functions */
     void execFSMCallback(const ros::TimerEvent &e);
@@ -123,6 +129,10 @@ namespace ego_planner
 
     /* ground height measurement */
     bool measureGroundHeight(double &height);
+
+    uint8_t replan_trigger_reason_{0};
+    uint32_t replan_count_{0};
+    ros::Time last_replan_info_stamp_;
   };
 
 } // namespace ego_planner

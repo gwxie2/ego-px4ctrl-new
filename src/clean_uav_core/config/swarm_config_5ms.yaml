@@ -1,0 +1,67 @@
+# =============================================================
+# 5m/s 中速进阶 YAML
+#
+# 用法：
+# python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
+#   --version v2 \
+#   --swarm-config src/clean_uav_core/config/swarm_config_5ms.yaml
+#
+# 说明：
+# - 对应你给出的 Fast 中速进阶档。
+# - 适合比安全基线更积极，但还不进入 10m/s 科研极限的实验。
+# =============================================================
+
+simulation:
+  world_path: "swarm_benchmark_forest_phase1.world"
+  gui: false
+  use_rviz: true
+  enable_vins: false
+  use_truth_odom_runtime: true
+
+physical_uav:
+  mass: 1.2
+  hover_percent: 0.58
+  pid_gain:
+    Kp: 4.5
+
+    # 5m/s 档按你的表提升到 1.8，增强速度响应。
+    Kv: 1.8
+
+planning_base:
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+  resolution: 0.1
+  ground_height: -0.01
+  odom_depth_timeout: 0.5
+  grid_map_depth_filter_mindist: 0.1
+
+  # local_update 对应表中的 20m，主要作用在水平面前向感知。
+  local_update_range_x: 20.0
+  local_update_range_y: 20.0
+  local_update_range_z: 4.5
+
+mission_profiles:
+  original:
+    # ===== 物理极限 =====
+    max_vel: 5.0
+    max_acc: 4.0
+    max_jerk: 8.0
+
+    # ===== 感知与前瞻 =====
+    planning_horizon: 15.0
+    replan_time: 0.5
+    emergency_time: 0.8
+
+    # ===== MINCO 优化 =====
+    weight_time: 50.0
+    lambda_smooth: 2.0
+
+    # ===== 避障 =====
+    grid_map_obstacles_inflation: 0.3
+    swarm_clearance: 0.6
+
+    # 这三项沿用仓库里中速档的默认思想。
+    swarm_collision_weight: 0.7
+    swarm_weight: 15000.0
+    swarm_symmetry_gain: 0.01

@@ -57,6 +57,7 @@
       <param name="target_component_id" value="$(arg tgt_component)"/>
       <param name="fcu_protocol" value="v2.0"/>
       <rosparam command="load" file="$(find mavros)/launch/px4_pluginlists.yaml"/>
+      <rosparam command="load" file="$(find clean_uav_core)/config/mavros_swarm_pluginlists.yaml"/>
       <rosparam command="load" file="$(find mavros)/launch/px4_config.yaml"/>
     </node>
 

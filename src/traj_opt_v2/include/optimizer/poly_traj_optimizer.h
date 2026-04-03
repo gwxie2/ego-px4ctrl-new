@@ -77,6 +77,10 @@ namespace ego_planner
     int variable_num_;       // optimization variables
     int piece_num_;          // poly traj piece numbers
     int iter_num_;           // iteration of the solver
+      int last_astar_expanded_nodes_{0};
+      double last_gradient_norm_final_{0.0};
+      double last_cost_initial_{0.0};
+      double last_cost_final_{0.0};
     std::vector<double> min_ellip_dist2_; // min trajectory distance in swarm
     bool touch_goal_;
     struct MultitopologyData_t
@@ -95,6 +99,7 @@ namespace ego_planner
     /* optimization parameters */
     double wei_obs_, wei_obs_soft_;                               // obstacle weight
     double wei_swarm_, wei_swarm_mod_;                            // swarm weight
+    double wei_swarm_symmetry_gain_;                              // per-drone swarm bias
     double wei_feas_;                                             // feasibility weight
     double wei_sqrvar_;                                           // squared variance weight
     double wei_time_;                                             // time weight
@@ -126,6 +131,18 @@ namespace ego_planner
 
     /* helper functions */
     inline const ConstraintPoints &getControlPoints(void) { return cps_; }
+      inline int getIterNum(void) const { return iter_num_; }
+      inline void resetLastPlanDiagnostics()
+      {
+        last_astar_expanded_nodes_ = 0;
+        last_gradient_norm_final_ = 0.0;
+        last_cost_initial_ = 0.0;
+        last_cost_final_ = 0.0;
+      }
+      inline int getLastAStarExpandedNodes(void) const { return last_astar_expanded_nodes_; }
+      inline double getLastGradientNormFinal(void) const { return last_gradient_norm_final_; }
+      inline double getLastCostInitial(void) const { return last_cost_initial_; }
+      inline double getLastCostFinal(void) const { return last_cost_final_; }
     inline const poly_traj::MinJerkOpt &getMinJerkOpt(void) { return jerkOpt_; }
     inline int get_cps_num_prePiece_(void) { return cps_num_prePiece_; }
     inline double get_swarm_clearance_(void) { return swarm_clearance_; }

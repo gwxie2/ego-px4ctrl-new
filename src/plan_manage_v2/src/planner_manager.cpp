@@ -1,6 +1,7 @@
 // #include <fstream>
 #include <plan_manage/planner_manager.h>
 #include <thread>
+#include <quadrotor_msgs/PlannerReplanInfo.h>
 #include "visualization_msgs/Marker.h" // zx-todo
 
 namespace ego_planner
@@ -45,6 +46,7 @@ namespace ego_planner
   {
     ros::Time t_start = ros::Time::now();
     ros::Duration t_init, t_opt;
+    ploy_traj_opt_->resetLastPlanDiagnostics();
 
     static int count = 0;
     cout << "\033[47;30m\n[" << t_start << "] Drone " << pp_.drone_id << " Replan " << count++ << "\033[0m" << endl;
@@ -59,9 +61,23 @@ namespace ego_planner
     double ts = pp_.polyTraj_piece_length / pp_.max_vel_;
 
     poly_traj::MinJerkOpt initMJO;
+    auto record_metrics = [&](double search_ms, double optimize_ms, double adjust_ms, int iter_count, uint8_t failure_reason) {
+      last_replan_search_ms_ = search_ms;
+      last_replan_optimize_ms_ = optimize_ms;
+      last_replan_adjust_ms_ = adjust_ms;
+      last_replan_total_ms_ = search_ms + optimize_ms + adjust_ms;
+      last_replan_iter_count_ = iter_count;
+      last_failure_reason_ = failure_reason;
+      last_astar_expanded_nodes_ = ploy_traj_opt_->getLastAStarExpandedNodes();
+      last_gradient_norm_final_ = ploy_traj_opt_->getLastGradientNormFinal();
+      last_cost_initial_ = ploy_traj_opt_->getLastCostInitial();
+      last_cost_final_ = ploy_traj_opt_->getLastCostFinal();
+    };
+
     if (!computeInitState(start_pt, start_vel, start_acc, local_target_pt, local_target_vel,
                           flag_polyInit, flag_randomPolyTraj, ts, initMJO))
     {
+      record_metrics(0.0, 0.0, 0.0, 0, quadrotor_msgs::PlannerReplanInfo::FAILURE_INIT_FAILED);
       return false;
     }
 
@@ -69,11 +85,11 @@ namespace ego_planner
     vector<std::pair<int, int>> segments;
     if (ploy_traj_opt_->finelyCheckAndSetConstraintPoints(segments, initMJO, true) == PolyTrajOptimizer::CHK_RET::ERR)
     {
+      record_metrics(0.0, 0.0, 0.0, 0, quadrotor_msgs::PlannerReplanInfo::FAILURE_INIT_FAILED);
       return false;
     }
 
     t_init = ros::Time::now() - t_start;
-
     std::vector<Eigen::Vector3d> point_set;
     for (int i = 0; i < cstr_pts.cols(); ++i)
       point_set.push_back(cstr_pts.col(i));
@@ -85,6 +101,11 @@ namespace ego_planner
     bool flag_success = false;
     vector<vector<Eigen::Vector3d>> vis_trajs;
     poly_traj::MinJerkOpt best_MJO;
+    int best_iter_count = 0;
+    int best_astar_expanded_nodes = 0;
+    double best_gradient_norm_final = 0.0;
+    double best_cost_initial = 0.0;
+    double best_cost_final = 0.0;
 
     // ROS_ERROR("BBBB");
 
@@ -108,6 +129,7 @@ namespace ego_planner
         if (ploy_traj_opt_->optimizeTrajectory(headState, tailState,
                                                innerPts, initTraj.getDurations(), final_cost))
         {
+          const int candidate_iter_count = ploy_traj_opt_->getIterNum();
           success[i] = true;
 
           if (final_cost < min_cost)
@@ -115,6 +137,11 @@ namespace ego_planner
             min_cost = final_cost;
             best_MJO = ploy_traj_opt_->getMinJerkOpt();
             flag_success = true;
+            best_iter_count = candidate_iter_count;
+            best_astar_expanded_nodes = ploy_traj_opt_->getLastAStarExpandedNodes();
+            best_gradient_norm_final = ploy_traj_opt_->getLastGradientNormFinal();
+            best_cost_initial = ploy_traj_opt_->getLastCostInitial();
+            best_cost_final = ploy_traj_opt_->getLastCostFinal();
           }
 
           // visualization
@@ -152,9 +179,19 @@ namespace ego_planner
       flag_success = ploy_traj_opt_->optimizeTrajectory(headState, tailState,
                                                         innerPts, initTraj.getDurations(), final_cost);
       best_MJO = ploy_traj_opt_->getMinJerkOpt();
+      best_iter_count = ploy_traj_opt_->getIterNum();
+      best_astar_expanded_nodes = ploy_traj_opt_->getLastAStarExpandedNodes();
+      best_gradient_norm_final = ploy_traj_opt_->getLastGradientNormFinal();
+      best_cost_initial = ploy_traj_opt_->getLastCostInitial();
+      best_cost_final = ploy_traj_opt_->getLastCostFinal();
 
       t_opt = ros::Time::now() - t_start;
     }
+
+    last_astar_expanded_nodes_ = best_astar_expanded_nodes;
+    last_gradient_norm_final_ = best_gradient_norm_final;
+    last_cost_initial_ = best_cost_initial;
+    last_cost_final_ = best_cost_final;
 
     /*** STEP 3: Store and display results ***/
     cout << "Success=" << (flag_success ? "yes" : "no") << endl;
@@ -174,6 +211,16 @@ namespace ego_planner
       setLocalTrajFromOpt(best_MJO, touch_goal);
       cstr_pts = best_MJO.getInitConstraintPoints(ploy_traj_opt_->get_cps_num_prePiece_());
       visualization_->displayOptimalList(cstr_pts, 0);
+      record_metrics(
+          t_init.toSec() * 1000.0,
+          t_opt.toSec() * 1000.0,
+          0.0,
+          best_iter_count,
+          quadrotor_msgs::PlannerReplanInfo::FAILURE_NONE);
+      last_astar_expanded_nodes_ = best_astar_expanded_nodes;
+      last_gradient_norm_final_ = best_gradient_norm_final;
+      last_cost_initial_ = best_cost_initial;
+      last_cost_final_ = best_cost_final;
 
       continous_failures_count_ = 0;
     }
@@ -181,6 +228,16 @@ namespace ego_planner
     {
       cstr_pts = ploy_traj_opt_->getMinJerkOpt().getInitConstraintPoints(ploy_traj_opt_->get_cps_num_prePiece_());
       visualization_->displayFailedList(cstr_pts, 0);
+      record_metrics(
+          t_init.toSec() * 1000.0,
+          t_opt.toSec() * 1000.0,
+          0.0,
+          best_iter_count,
+          quadrotor_msgs::PlannerReplanInfo::FAILURE_OPTIMIZER_FAILED);
+      last_astar_expanded_nodes_ = best_astar_expanded_nodes;
+      last_gradient_norm_final_ = best_gradient_norm_final;
+      last_cost_initial_ = best_cost_initial;
+      last_cost_final_ = best_cost_final;
 
       continous_failures_count_++;
     }
