@@ -1,0 +1,104 @@
+# =============================================================
+# Stage C - Time/Smoothness Trade-off at 5m/s
+#
+# 目标：固定 5m/s 档位，对比“尽快到达”和“轨迹平滑”两种优化倾向。
+# =============================================================
+
+simulation:
+  world_path: "swarm_benchmark_forest_phase2_x1.5.world"
+  position_scale: 1.5
+  gui: false
+  use_rviz: false
+  enable_vins: false
+  use_truth_odom_runtime: true
+
+physical_uav:
+  mass: 1.2
+  hover_percent: 0.58
+  pid_gain:
+    Kp: 4.5
+    Kv: 2.0
+
+planning_base:
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+  resolution: 0.1
+  ground_height: -0.01
+  odom_depth_timeout: 0.5
+  grid_map_use_depth_filter: true
+  grid_map_depth_filter_tolerance: 0.15
+  grid_map_depth_filter_maxdist: 25.0
+  grid_map_depth_filter_mindist: 0.1
+  grid_map_depth_filter_margin: 2
+  grid_map_k_depth_scaling_factor: 1000.0
+  grid_map_skip_pixel: 2
+  local_update_range_x: 20.0
+  local_update_range_y: 20.0
+  local_update_range_z: 4.5
+
+mission_profiles:
+  balanced_reference:
+    max_vel: 5.0
+    max_acc: 4.0
+    max_jerk: 8.0
+    planning_horizon: 15.0
+    replan_time: 0.5
+    emergency_time: 0.8
+    weight_time: 50.0
+    lambda_smooth: 2.0
+    grid_map_obstacles_inflation: 0.3
+    swarm_clearance: 0.6
+    swarm_collision_weight: 0.7
+    swarm_weight: 15000.0
+    swarm_symmetry_gain: 0.01
+
+  time_priority:
+    max_vel: 5.0
+    max_acc: 4.5
+    max_jerk: 9.0
+    planning_horizon: 15.0
+    replan_time: 0.4
+    emergency_time: 0.6
+    weight_time: 220.0
+    lambda_smooth: 0.8
+    grid_map_obstacles_inflation: 0.28
+    swarm_clearance: 0.55
+    swarm_collision_weight: 0.65
+    swarm_weight: 14000.0
+    swarm_symmetry_gain: 0.0
+
+  smooth_priority:
+    max_vel: 5.0
+    max_acc: 3.8
+    max_jerk: 7.0
+    planning_horizon: 17.0
+    replan_time: 0.6
+    emergency_time: 0.8
+    weight_time: 30.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.35
+    swarm_clearance: 0.65
+    swarm_collision_weight: 0.75
+    swarm_weight: 16000.0
+    swarm_symmetry_gain: 0.01
+
+  # Robust variant: reduced inflation (0.35→0.30) to shrink noise-induced
+  # false obstacles while maintaining safe clearance (~0.15m beyond UAV
+  # radius of 0.15m). Designed for pairing with depth_median_filter (size=3)
+  # to tolerate sensor noise. Values 0.20 and 0.25 both caused emergency_stop
+  # in forest scenario; 0.30 is the minimum safe value verified so far.
+  smooth_priority_robust:
+    max_vel: 5.0
+    max_acc: 3.8
+    max_jerk: 7.0
+    planning_horizon: 17.0
+    replan_time: 0.6
+    emergency_time: 0.8
+    weight_time: 30.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.30
+    swarm_clearance: 0.65
+    swarm_collision_weight: 0.75
+    swarm_weight: 16000.0
+    swarm_symmetry_gain: 0.01

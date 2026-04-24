@@ -99,7 +99,7 @@ def parse_uav_ids(config_path):
     return actual_ids
 
 
-def _build_phase1_uav_configs_from_ids(drone_ids, radius=15.0, start_z=0.10, goal_z=1.50):
+def _build_phase1_uav_configs_from_ids(drone_ids, radius=15.0, start_z=0.10, goal_z=1.50, scale=1.0):
     num_uavs = len(drone_ids)
 
     if num_uavs == 1:
@@ -112,8 +112,8 @@ def _build_phase1_uav_configs_from_ids(drone_ids, radius=15.0, start_z=0.10, goa
     uav_configs = OrderedDict()
     for drone_id, angle_deg in zip(drone_ids, angles_deg):
         angle_rad = math.radians(angle_deg)
-        start_x = radius * math.cos(angle_rad)
-        start_y = radius * math.sin(angle_rad)
+        start_x = radius * math.cos(angle_rad) * scale
+        start_y = radius * math.sin(angle_rad) * scale
         start_yaw = math.atan2(-start_y, -start_x)
 
         uav_configs[drone_id] = {
@@ -134,17 +134,83 @@ def _build_phase1_uav_configs_from_ids(drone_ids, radius=15.0, start_z=0.10, goa
     return uav_configs
 
 
-def build_phase1_uav_configs(config_path, radius=15.0, start_z=0.10, goal_z=1.50):
+def _build_track_uav_configs_from_ids(
+    drone_ids,
+    start_x=2.0,
+    delta_y=3.0,
+    start_z=0.20,
+    goal_x=115.0,
+    goal_z=1.50,
+    goal_mode="parallel",
+    start_yaw=0.0,
+):
+    goal_mode = str(goal_mode).strip().lower()
+    if goal_mode not in {"parallel", "cross"}:
+        raise SwarmConfigError(f"track.goal_mode must be either 'parallel' or 'cross', got '{goal_mode}'")
+
+    num_uavs = len(drone_ids)
+    uav_configs = OrderedDict()
+    for index, drone_id in enumerate(drone_ids):
+        start_y = (index - (num_uavs - 1) / 2.0) * float(delta_y)
+        goal_y = start_y if goal_mode == "parallel" else -start_y
+        uav_configs[drone_id] = {
+            "start": {
+                "x": float(start_x),
+                "y": start_y,
+                "z": float(start_z),
+                "yaw": float(start_yaw),
+            },
+            "goal": {
+                "x": float(goal_x),
+                "y": goal_y,
+                "z": float(goal_z),
+                "yaw": float(start_yaw),
+            },
+        }
+
+    return uav_configs
+
+
+def build_phase1_uav_configs(config_path, radius=15.0, start_z=0.10, goal_z=1.50, scale=1.0):
     drone_ids = parse_uav_ids(config_path)
-    return _build_phase1_uav_configs_from_ids(drone_ids, radius=radius, start_z=start_z, goal_z=goal_z)
+    return _build_phase1_uav_configs_from_ids(drone_ids, radius=radius, start_z=start_z, goal_z=goal_z, scale=scale)
 
 
-def build_phase1_uav_configs_for_count(num_uavs, radius=15.0, start_z=0.10, goal_z=1.50):
+def build_phase1_uav_configs_for_count(num_uavs, radius=15.0, start_z=0.10, goal_z=1.50, scale=1.0):
     if num_uavs <= 0:
         raise SwarmConfigError(f"num_uavs must be positive, got {num_uavs}")
 
     drone_ids = list(range(num_uavs))
-    return _build_phase1_uav_configs_from_ids(drone_ids, radius=radius, start_z=start_z, goal_z=goal_z)
+    return _build_phase1_uav_configs_from_ids(drone_ids, radius=radius, start_z=start_z, goal_z=goal_z, scale=scale)
+
+
+def build_uav_configs_from_shared_config(drone_ids, shared_config, scale=1.0):
+    simulation = shared_config.get("simulation", {})
+    if not isinstance(simulation, dict):
+        raise SwarmConfigError("simulation must be a mapping")
+
+    position_layout = str(simulation.get("position_layout", "circular")).strip().lower()
+    if position_layout in {"circular", "circle", "phase1", "legacy"}:
+        return _build_phase1_uav_configs_from_ids(drone_ids, scale=scale)
+
+    if position_layout in {"track", "track_line", "high_speed_track"}:
+        track = simulation.get("track", {})
+        if not isinstance(track, dict):
+            raise SwarmConfigError("simulation.track must be a mapping when position_layout is track_line")
+        return _build_track_uav_configs_from_ids(
+            drone_ids,
+            start_x=track.get("start_x", 2.0),
+            delta_y=track.get("delta_y", 3.0),
+            start_z=track.get("start_z", 0.20),
+            goal_x=track.get("goal_x", 115.0),
+            goal_z=track.get("goal_z", 1.50),
+            goal_mode=track.get("goal_mode", "parallel"),
+            start_yaw=track.get("start_yaw", 0.0),
+        )
+
+    raise SwarmConfigError(
+        f"unsupported simulation.position_layout '{position_layout}', expected circular or track_line"
+    )
 
 
 def load_yaml_config(config_path):
@@ -276,13 +342,40 @@ def build_runtime_defaults(shared_config, profile_name, version):
     defaults["enable_vins"] = bool_text(simulation["enable_vins"])
     defaults["use_truth_odom_runtime"] = bool_text(simulation["use_truth_odom_runtime"])
 
+    sensor_degradation = simulation.get("sensor_degradation", {})
+    if sensor_degradation is None:
+        sensor_degradation = {}
+    if not isinstance(sensor_degradation, dict):
+        raise SwarmConfigError("simulation.sensor_degradation must be a mapping")
+    sensor_degradation_enabled = bool(sensor_degradation.get("enabled", False))
+    sensor_degradation_mode = str(sensor_degradation.get("mode", "clean")).strip().lower()
+    _valid_modes = ("clean", "nominal", "mild_no_latency", "mild", "extreme")
+    if sensor_degradation_mode not in _valid_modes:
+        raise SwarmConfigError(
+            f"simulation.sensor_degradation.mode must be one of {_valid_modes}, got '{sensor_degradation_mode}'"
+        )
+    depth_median_filter_size = int(sensor_degradation.get("depth_median_filter_size", 0))
+    defaults["sensor_degradation_enabled"] = bool_text(sensor_degradation_enabled)
+    defaults["sensor_degradation_mode"] = sensor_degradation_mode
+    defaults["depth_median_filter_size"] = str(depth_median_filter_size)
+
     defaults["grid_map_resolution"] = float_text(planning_base["resolution"])
     defaults["map_size_x"] = float_text(planning_base["map_size_x"])
     defaults["map_size_y"] = float_text(planning_base["map_size_y"])
     defaults["map_size_z"] = float_text(planning_base["map_size_z"])
     defaults["grid_map_ground_height"] = float_text(planning_base["ground_height"])
     defaults["grid_map_odom_depth_timeout"] = float_text(planning_base["odom_depth_timeout"])
+    defaults["grid_map_use_depth_filter"] = bool_text(planning_base.get("grid_map_use_depth_filter", True))
+    defaults["grid_map_depth_filter_tolerance"] = float_text(
+        planning_base.get("grid_map_depth_filter_tolerance", 0.15)
+    )
+    defaults["grid_map_depth_filter_maxdist"] = float_text(planning_base.get("grid_map_depth_filter_maxdist", 25.0))
     defaults["grid_map_depth_filter_mindist"] = float_text(planning_base["grid_map_depth_filter_mindist"])
+    defaults["grid_map_depth_filter_margin"] = int_text(planning_base.get("grid_map_depth_filter_margin", 2))
+    defaults["grid_map_k_depth_scaling_factor"] = float_text(
+        planning_base.get("grid_map_k_depth_scaling_factor", 1000.0)
+    )
+    defaults["grid_map_skip_pixel"] = int_text(planning_base.get("grid_map_skip_pixel", 2))
     defaults["grid_map_local_update_range_x"] = float_text(planning_base.get("local_update_range_x", 15.0))
     defaults["grid_map_local_update_range_y"] = float_text(planning_base.get("local_update_range_y", 15.0))
     defaults["grid_map_local_update_range_z"] = float_text(planning_base.get("local_update_range_z", 4.5))
@@ -294,6 +387,8 @@ def build_runtime_defaults(shared_config, profile_name, version):
     defaults["planner_planning_horizon"] = float_text(profile["planning_horizon"])
     defaults["planner_replan_time"] = float_text(profile["replan_time"])
     defaults["planner_emergency_time"] = float_text(profile.get("emergency_time", profile["replan_time"]))
+    defaults["planner_weight_obstacle"] = float_text(profile.get("weight_obstacle", -1.0))
+    defaults["planner_astar_latency_predict"] = float_text(profile.get("astar_latency_predict", 0.0))
     defaults["planner_weight_time"] = float_text(profile["weight_time"])
     defaults["planner_lambda_smooth"] = float_text(profile["lambda_smooth"])
     defaults["swarm_clearance"] = float_text(profile["swarm_clearance"])
@@ -309,6 +404,7 @@ def build_runtime_defaults(shared_config, profile_name, version):
     defaults["planner_fail_safe"] = "true"
     defaults["planner_flight_type"] = "2" if version == "v2" else "1"
     defaults["planner_realworld_experiment"] = "false"
+    defaults["use_multitopology_trajs"] = "false"
     defaults["swarm_acceptance_radius"] = "-1.0"
     defaults["swarm_filter_far_trajectories"] = "false"
     defaults["swarm_time_warn_threshold"] = "0.25"
@@ -328,6 +424,7 @@ class SwarmLaunchGeneratorYaml:
         uav_count=None,
         world_override=None,
         emit_legacy_variants=False,
+        scale=1.0,
     ):
         self.version = normalize_version(version)
         self.profile = str(profile).strip() or "original"
@@ -336,14 +433,18 @@ class SwarmLaunchGeneratorYaml:
         self.output_path = output_path
         self.uav_count = uav_count
         self.emit_legacy_variants = bool(emit_legacy_variants)
+        self.scale = float(scale)
 
-        if self.uav_count is None:
-            self.uav_configs = build_phase1_uav_configs(position_config_path)
-        else:
-            self.uav_configs = build_phase1_uav_configs_for_count(self.uav_count)
-        self.num_uavs = len(self.uav_configs)
         self.shared_config = load_yaml_config(swarm_config_path)
         self.defaults = build_runtime_defaults(self.shared_config, self.profile, self.version)
+
+        if self.uav_count is None:
+            drone_ids = parse_uav_ids(position_config_path)
+        else:
+            drone_ids = list(range(self.uav_count))
+
+        self.uav_configs = build_uav_configs_from_shared_config(drone_ids, self.shared_config, scale=self.scale)
+        self.num_uavs = len(self.uav_configs)
         if world_override:
             self.defaults["world"] = world_override
         self.position_config_launch_value = format_launch_config_path(position_config_path)
@@ -368,6 +469,7 @@ class SwarmLaunchGeneratorYaml:
         common_args = OrderedDict(
             [
                 ("planner_version", self.version),
+                ("planner_node_name", "ego_planner_v2" if self.version == "v2" else "ego_planner"),
                 ("world", self.defaults["world"]),
                 ("gui", self.defaults["gui"]),
                 ("paused", "false"),
@@ -381,6 +483,9 @@ class SwarmLaunchGeneratorYaml:
                 ),
                 ("enable_vins", self.defaults["enable_vins"]),
                 ("use_truth_odom_runtime", self.defaults["use_truth_odom_runtime"]),
+                ("sensor_degradation_enabled", self.defaults["sensor_degradation_enabled"]),
+                ("sensor_degradation_mode", self.defaults["sensor_degradation_mode"]),
+                ("depth_median_filter_size", self.defaults["depth_median_filter_size"]),
             ]
         )
         mission_args = OrderedDict(
@@ -392,10 +497,16 @@ class SwarmLaunchGeneratorYaml:
                 ("planner_replan_time", self.defaults["planner_replan_time"]),
                 ("planner_emergency_time", self.defaults["planner_emergency_time"]),
                 ("planner_weight_time", self.defaults["planner_weight_time"]),
+                ("planner_astar_pool_size", "100"),
+                ("planner_astar_debug_logging", "false"),
+                ("planner_astar_step_factor", "1.0"),
+                ("planner_weight_obstacle", self.defaults["planner_weight_obstacle"]),
+                ("planner_astar_latency_predict", self.defaults["planner_astar_latency_predict"]),
                 ("planner_lambda_smooth", self.defaults["planner_lambda_smooth"]),
                 ("planner_fail_safe", self.defaults["planner_fail_safe"]),
                 ("planner_flight_type", self.defaults["planner_flight_type"]),
                 ("planner_realworld_experiment", self.defaults["planner_realworld_experiment"]),
+                ("use_multitopology_trajs", self.defaults["use_multitopology_trajs"]),
                 ("swarm_acceptance_radius", self.defaults["swarm_acceptance_radius"]),
                 ("swarm_filter_far_trajectories", self.defaults["swarm_filter_far_trajectories"]),
                 ("swarm_time_warn_threshold", self.defaults["swarm_time_warn_threshold"]),
@@ -414,7 +525,13 @@ class SwarmLaunchGeneratorYaml:
                 ("map_size_z", self.defaults["map_size_z"]),
                 ("grid_map_ground_height", self.defaults["grid_map_ground_height"]),
                 ("grid_map_odom_depth_timeout", self.defaults["grid_map_odom_depth_timeout"]),
+                ("grid_map_use_depth_filter", self.defaults["grid_map_use_depth_filter"]),
+                ("grid_map_depth_filter_tolerance", self.defaults["grid_map_depth_filter_tolerance"]),
+                ("grid_map_depth_filter_maxdist", self.defaults["grid_map_depth_filter_maxdist"]),
                 ("grid_map_depth_filter_mindist", self.defaults["grid_map_depth_filter_mindist"]),
+                ("grid_map_depth_filter_margin", self.defaults["grid_map_depth_filter_margin"]),
+                ("grid_map_k_depth_scaling_factor", self.defaults["grid_map_k_depth_scaling_factor"]),
+                ("grid_map_skip_pixel", self.defaults["grid_map_skip_pixel"]),
                 ("grid_map_local_update_range_x", self.defaults["grid_map_local_update_range_x"]),
                 ("grid_map_local_update_range_y", self.defaults["grid_map_local_update_range_y"]),
                 ("grid_map_local_update_range_z", self.defaults["grid_map_local_update_range_z"]),
@@ -436,19 +553,80 @@ class SwarmLaunchGeneratorYaml:
                 ("planner_start_stable_duration", "1.5"),
                 ("planner_start_timeout", "60.0"),
                 ("planner_post_takeoff_delay", "1.0"),
+                ("swarm_wait_for_all_uavs", "true" if self.version == "v2" else "false"),
+                ("swarm_num_uavs", str(self.num_uavs)),
+                (
+                    "swarm_odom_topic_template",
+                    "/drone_%d/truth_odom" if self.version == "v2" else "/drone_%d/odom",
+                ),
                 ("traj_trigger_delay", "20.0"),
                 ("traj_trigger_repeat", "1"),
                 ("traj_trigger_rate", "3.0"),
-                ("goal_start_delay", "$(eval float(arg('takeoff_delay')) + 12.0)"),
+                (
+                    "goal_start_delay",
+                    "$(eval float(arg('takeoff_delay')) + 12.0)" if self.version == "v2" else "1.0",
+                ),
                 ("goal_publish_rate", "0.2"),
                 ("goal_period_sec", "30.0"),
                 ("enable_oscillation", "true"),
+                ("planner_log_to_file", "false"),
+                ("planner_log_root_dir", "$(arg benchmark_output_dir)/planner_logs"),
+                ("planner_log_session", "manual_run"),
+            ]
+        )
+        mission_manager_args = OrderedDict(
+            [
+                ("enable_mission_manager", "false"),
+                ("mission_manager_mode", "search"),
+                ("mission_use_v1", "true" if self.version == "v1" else "false"),
+                ("mission_use_v2", "true" if self.version == "v2" else "false"),
+                ("mission_goal_topic", "/goal_with_id"),
+                ("mission_goal_topic_template", "/drone_%d/goal"),
+                ("mission_feedback_topic", "/mission_manager/feedback"),
+                ("mission_benchmark_track", "$(arg benchmark_enable)"),
+                ("mission_goal_reached_radius_m", "1.0"),
+                ("mission_target_confirmation_radius_m", "1.5"),
+                ("mission_support_radius_m", "8.0"),
+                ("mission_search_altitude_m", "1.5"),
+                ("mission_waypoint_spacing_m", "12.0"),
+                ("mission_initial_escape_distance_m", "3.0"),
+                ("mission_initial_heading_weight", "1.0"),
+                ("mission_search_area_min_x", "-20.0"),
+                ("mission_search_area_max_x", "20.0"),
+                ("mission_search_area_min_y", "-12.0"),
+                ("mission_search_area_max_y", "12.0"),
+                ("mission_search_sector_count", "3"),
+                ("mission_explore_speed_mps", "0.8"),
+                ("mission_track_speed_mps", "2.5"),
+                ("mission_support_speed_mps", "1.8"),
+                ("mission_finish_speed_mps", "1.0"),
+            ]
+        )
+        benchmark_args = OrderedDict(
+            [
+                ("benchmark_enable", "false"),
+                ("benchmark_output_dir", "$(env HOME)/swarm_benchmark/data"),
+                ("benchmark_record_rosbag", "true"),
+                ("benchmark_low_speed_threshold", "0.1"),
+                ("benchmark_low_speed_duration", "2.0"),
+                ("benchmark_goal_distance_threshold", "0.5"),
+                ("benchmark_command_age_warn_ms", "150.0"),
+                ("benchmark_command_interval_warn_ms", "150.0"),
+                ("benchmark_stop_after_terminal_sec", "2.0"),
+                ("benchmark_min_session_duration_sec", "0.0"),
+                ("benchmark_max_session_duration_sec", "0.0"),
+                ("benchmark_safety_margin_threshold", "$(arg swarm_clearance)"),
+                ("benchmark_actuator_saturation_threshold", "0.9"),
+                ("benchmark_default_vmax", self.defaults["planner_max_vel"]),
+                ("benchmark_goal_stop_enabled", "false"),
             ]
         )
 
         lines = []
         lines.extend(self._emit_arg_block("Global Arguments", common_args))
         lines.extend(self._emit_arg_block("Mission Profile Arguments", mission_args))
+        lines.extend(self._emit_arg_block("Cooperative Search Arguments", mission_manager_args))
+        lines.extend(self._emit_arg_block("Benchmark Arguments", benchmark_args))
         lines.extend(self._emit_arg_block("Grid Map Arguments", map_args))
         lines.extend(self._emit_arg_block("Physical UAV Arguments", physical_args))
         lines.extend(self._emit_arg_block("Timing Arguments", timing_args))
@@ -457,6 +635,9 @@ class SwarmLaunchGeneratorYaml:
             v2_aux_args = OrderedDict(
                 [
                     ("planner_goal_topic", "/goal_with_id"),
+                    ("traj_server_enable_stale_traj_extrapolation", "false"),
+                    ("traj_server_stale_traj_extrapolation_timeout", "0.35"),
+                    ("traj_server_retime_position_cmd_now", "true"),
                     ("planning_broadcast_topic_v2", "/swarm/v2/broadcast_traj"),
                     ("enable_goal_tooling_v2", "false"),
                     ("enable_assign_goals_v2", "true"),
@@ -499,15 +680,37 @@ class SwarmLaunchGeneratorYaml:
     def _generate_uav_instances(self):
         lines = [
             self._indent(1, "<!-- ========================================== -->"),
-            self._indent(1, "<!-- UAV Full-stack Instances                   -->"),
+            self._indent(1, "<!-- UAV Simulation Layer (iris_X namespace)   -->"),
             self._indent(1, "<!-- ========================================== -->"),
             self._indent(1, ""),
         ]
 
-        forwarded_args = [
-            "planner_version",
+        for drone_id, config in self.uav_configs.items():
+            init = config["start"]
+            lines.append(self._indent(1, f"<!-- drone_{drone_id} sim -->"))
+            lines.append(self._indent(1, '<include file="$(find clean_uav_core)/launch/swarm_uav_sim_instance.launch">'))
+            lines.append(self._indent(2, f'<arg name="drone_id" value="{drone_id}"/>'))
+            lines.append(self._indent(2, f'<arg name="init_x" value="{init["x"]}"/>'))
+            lines.append(self._indent(2, f'<arg name="init_y" value="{init["y"]}"/>'))
+            lines.append(self._indent(2, f'<arg name="init_z" value="{init["z"]}"/>'))
+            lines.append(self._indent(2, f'<arg name="init_yaw" value="{init["yaw"]}"/>'))
+            lines.append(self._indent(1, "</include>"))
+            lines.append(self._indent(1, ""))
+
+        lines.extend(
+            [
+                self._indent(1, "<!-- ========================================== -->"),
+                self._indent(1, "<!-- UAV Runtime Layer (drone_X namespace)     -->"),
+                self._indent(1, "<!-- ========================================== -->"),
+                self._indent(1, ""),
+            ]
+        )
+
+        common_runtime_args = [
             "enable_vins",
             "use_truth_odom_runtime",
+            "sensor_degradation_enabled",
+            "sensor_degradation_mode",
             "planner_max_vel",
             "planner_max_acc",
             "planner_max_jerk",
@@ -515,23 +718,29 @@ class SwarmLaunchGeneratorYaml:
             "planner_replan_time",
             "planner_emergency_time",
             "planner_weight_time",
-            "planner_lambda_smooth",
             "planner_fail_safe",
             "planner_flight_type",
             "planner_realworld_experiment",
+            "use_multitopology_trajs",
             "grid_map_resolution",
             "map_size_x",
             "map_size_y",
             "map_size_z",
             "grid_map_ground_height",
             "grid_map_odom_depth_timeout",
+            "grid_map_use_depth_filter",
+            "grid_map_depth_filter_tolerance",
+            "grid_map_depth_filter_maxdist",
             "grid_map_depth_filter_mindist",
+            "grid_map_depth_filter_margin",
+            "grid_map_k_depth_scaling_factor",
+            "grid_map_skip_pixel",
             "grid_map_local_update_range_x",
             "grid_map_local_update_range_y",
             "grid_map_local_update_range_z",
             "grid_map_obstacles_inflation",
-            "mass",
             "hover_percent",
+            "mass",
             "px4ctrl_kp",
             "px4ctrl_kv",
             "takeoff_delay",
@@ -539,38 +748,127 @@ class SwarmLaunchGeneratorYaml:
             "planner_start_stable_duration",
             "planner_start_timeout",
             "planner_post_takeoff_delay",
+            "swarm_wait_for_all_uavs",
+            "swarm_num_uavs",
+            "swarm_odom_topic_template",
+            "planner_log_to_file",
             "swarm_acceptance_radius",
             "swarm_filter_far_trajectories",
             "swarm_time_warn_threshold",
             "swarm_time_reject_threshold",
             "swarm_clearance",
-            "swarm_collision_weight",
-            "swarm_weight",
-            "swarm_symmetry_gain",
+            "depth_median_filter_size",
         ]
         if self.version == "v2":
-            forwarded_args.extend(["planner_goal_topic", "planning_broadcast_topic_v2"])
+            runtime_launch = "swarm_uav_runtime_instance_v2.launch"
+            runtime_specific_args = [
+                "planner_astar_pool_size",
+                "planner_astar_debug_logging",
+                "planner_astar_step_factor",
+                "planner_weight_obstacle",
+                "planner_astar_latency_predict",
+                "swarm_weight",
+                "swarm_symmetry_gain",
+                "planner_goal_topic",
+                "traj_server_enable_stale_traj_extrapolation",
+                "traj_server_stale_traj_extrapolation_timeout",
+                "traj_server_retime_position_cmd_now",
+                "traj_server_startup_yaw_hold_time",
+                "traj_server_startup_yaw_release_speed",
+                "traj_server_startup_yaw_release_distance",
+            ]
+            broadcast_value_name = "planning_broadcast_topic_v2"
+        else:
+            runtime_launch = "swarm_uav_runtime_instance.launch"
+            runtime_specific_args = [
+                "planner_lambda_smooth",
+                "swarm_collision_weight",
+            ]
+            broadcast_value_name = None
 
         for drone_id, config in self.uav_configs.items():
             init = config["start"]
             goal = config["goal"]
-            lines.append(self._indent(1, f"<!-- drone_{drone_id} -->"))
-            lines.append(self._indent(1, '<include file="$(find clean_uav_core)/launch/swarm_uav_instance.launch">'))
+            lines.append(self._indent(1, f"<!-- drone_{drone_id} runtime -->"))
+            lines.append(self._indent(1, f'<include file="$(find clean_uav_core)/launch/{runtime_launch}">'))
             lines.append(self._indent(2, f'<arg name="drone_id" value="{drone_id}"/>'))
             lines.append(self._indent(2, f'<arg name="init_x" value="{init["x"]}"/>'))
             lines.append(self._indent(2, f'<arg name="init_y" value="{init["y"]}"/>'))
             lines.append(self._indent(2, f'<arg name="init_z" value="{init["z"]}"/>'))
-            lines.append(self._indent(2, f'<arg name="init_yaw" value="{init["yaw"]}"/>'))
-            lines.append(self._indent(2, f'<arg name="target_x" value="{goal["x"]}"/>'))
-            lines.append(self._indent(2, f'<arg name="target_y" value="{goal["y"]}"/>'))
-            lines.append(self._indent(2, f'<arg name="target_z" value="{goal["z"]}"/>'))
-            for arg_name in forwarded_args:
-                value_name = "planning_broadcast_topic_v2" if arg_name == "planning_broadcast_topic_v2" else arg_name
-                pass_name = "planning_broadcast_topic" if arg_name == "planning_broadcast_topic_v2" else arg_name
-                lines.append(self._indent(2, f'<arg name="{pass_name}" value="$(arg {value_name})"/>'))
+            lines.append(self._indent(2, '<arg name="goal_mode" value="$(arg mission_manager_mode)"/>'))
+            lines.append(self._indent(2, f'<arg name="target_x" value="{init["x"]}"/>'))
+            lines.append(self._indent(2, f'<arg name="target_y" value="{init["y"]}"/>'))
+            lines.append(self._indent(2, f'<arg name="target_z" value="{init["z"]}"/>'))
+            for arg_name in common_runtime_args + runtime_specific_args:
+                if arg_name == "planner_flight_type":
+                    lines.append(
+                        self._indent(
+                            2,
+                            '<arg name="planner_flight_type" value="$(eval 1 if str(arg(\'enable_mission_manager\')).lower() in [\'true\', \'1\', \'yes\'] and str(arg(\'mission_manager_mode\')).lower() == \'search\' else arg(\'planner_flight_type\'))"/>',
+                        )
+                    )
+                else:
+                    lines.append(self._indent(2, f'<arg name="{arg_name}" value="$(arg {arg_name})"/>'))
+            if self.version == "v2":
+                lines.append(self._indent(2, f'<arg name="planner_log_file" value="$(eval \'%s/%s/drone_%s_ego_planner_v2.log\' % (arg(\'planner_log_root_dir\'), arg(\'planner_log_session\'), \'{drone_id}\'))"/>'))
+            if broadcast_value_name is not None:
+                lines.append(self._indent(2, f'<arg name="planning_broadcast_topic" value="$(arg {broadcast_value_name})"/>'))
             lines.append(self._indent(1, "</include>"))
             lines.append(self._indent(1, ""))
         return lines
+
+    def _generate_benchmark_suite(self):
+        planner_node_name = "ego_planner_v2" if self.version == "v2" else "ego_planner"
+        planner_name_segment = planner_node_name
+        drone_ids = ",".join(str(drone_id) for drone_id in self.uav_configs.keys())
+        goal_xs = ",".join(str(config["goal"]["x"]) for config in self.uav_configs.values())
+        goal_ys = ",".join(str(config["goal"]["y"]) for config in self.uav_configs.values())
+        goal_zs = ",".join(str(config["goal"]["z"]) for config in self.uav_configs.values())
+        start_xs = ",".join(str(config["start"]["x"]) for config in self.uav_configs.values())
+        start_ys = ",".join(str(config["start"]["y"]) for config in self.uav_configs.values())
+        start_zs = ",".join(str(config["start"]["z"]) for config in self.uav_configs.values())
+
+        return [
+            self._indent(1, "<!-- ========================================== -->"),
+            self._indent(1, "<!-- Benchmark Suite                           -->"),
+            self._indent(1, "<!-- ========================================== -->"),
+            self._indent(1, ""),
+            self._indent(1, '<group if="$(arg benchmark_enable)" ns="benchmark">'),
+            self._indent(2, '<node pkg="clean_uav_core" type="benchmark_manager.py" name="benchmark_manager" output="screen">'),
+            self._indent(3, f'<param name="planner_node_name" value="{planner_node_name}"/>'),
+            self._indent(3, f'<param name="drone_count" value="{self.num_uavs}"/>'),
+            self._indent(3, '<param name="output_dir" value="$(arg benchmark_output_dir)"/>'),
+            self._indent(3, '<param name="record_rosbag" value="$(arg benchmark_record_rosbag)"/>'),
+            self._indent(3, '<param name="low_speed_threshold" value="$(arg benchmark_low_speed_threshold)"/>'),
+            self._indent(3, '<param name="low_speed_duration" value="$(arg benchmark_low_speed_duration)"/>'),
+            self._indent(3, '<param name="goal_distance_threshold" value="$(arg benchmark_goal_distance_threshold)"/>'),
+            self._indent(3, '<param name="command_age_warn_ms" value="$(arg benchmark_command_age_warn_ms)"/>'),
+            self._indent(3, '<param name="command_interval_warn_ms" value="$(arg benchmark_command_interval_warn_ms)"/>'),
+            self._indent(3, '<param name="stop_after_terminal_sec" value="$(arg benchmark_stop_after_terminal_sec)"/>'),
+            self._indent(3, '<param name="min_session_duration_sec" value="$(arg benchmark_min_session_duration_sec)"/>'),
+            self._indent(3, '<param name="max_session_duration_sec" value="$(arg benchmark_max_session_duration_sec)"/>'),
+            self._indent(3, '<param name="safety_margin_threshold" value="$(arg benchmark_safety_margin_threshold)"/>'),
+            self._indent(3, '<param name="actuator_saturation_threshold" value="$(arg benchmark_actuator_saturation_threshold)"/>'),
+            self._indent(3, '<param name="default_vmax" value="$(arg benchmark_default_vmax)"/>'),
+            self._indent(3, f'<param name="default_drone_ids" value="{drone_ids}"/>'),
+            self._indent(3, '<param name="goal_stop_enabled" value="$(eval str(arg(\'mission_manager_mode\')).lower() != \'search\')"/>'),
+            self._indent(3, f'<param name="default_goal_xs" value="{start_xs}"/>'),
+            self._indent(3, f'<param name="default_goal_ys" value="{start_ys}"/>'),
+            self._indent(3, f'<param name="default_goal_zs" value="{start_zs}"/>'),
+            self._indent(3, '<rosparam command="load" file="$(find clean_uav_core)/config/benchmark_research/search_hidden_target_v2.yaml"/>'),
+            self._indent(3, '<param name="odom_topic_template" value="/drone_%d/odom"/>'),
+            self._indent(3, '<param name="position_cmd_topic_template" value="/drone_%d/position_cmd"/>'),
+            self._indent(3, f'<param name="replan_info_topic_template" value="/drone_%d/{planner_name_segment}/planning/replan_info"/>'),
+            self._indent(3, f'<param name="planner_event_topic_template" value="/drone_%d/{planner_name_segment}/planning/benchmark_event"/>'),
+            self._indent(3, f'<param name="safety_topic_template" value="/drone_%d/{planner_name_segment}/grid_map/occupancy_inflate"/>'),
+            self._indent(3, '<param name="attitude_topic_template" value="/iris_%d/mavros/setpoint_raw/attitude"/>'),
+            self._indent(3, '<param name="mavros_state_topic_template" value="/iris_%d/mavros/state"/>'),
+            self._indent(3, '<param name="extrinsic_topic_template" value="/drone_%d/vins_estimator/extrinsic"/>'),
+            self._indent(3, '<param name="px4_debug_topic_template" value="/drone_%d/px4ctrl/debugPx4ctrl"/>'),
+            self._indent(2, '</node>'),
+            self._indent(1, '</group>'),
+            self._indent(1, ""),
+        ]
 
     def _generate_swarm_trigger(self):
         if self.version != "v1":
@@ -590,24 +888,103 @@ class SwarmLaunchGeneratorYaml:
             self._indent(1, ""),
         ]
 
+    def _generate_mission_manager(self):
+        target_positions = ";".join(
+            f"{config['goal']['x']},{config['goal']['y']},{config['goal']['z']}"
+            for config in self.uav_configs.values()
+        )
+        default_goal_xs = ",".join(str(config["goal"]["x"]) for config in self.uav_configs.values())
+        default_goal_ys = ",".join(str(config["goal"]["y"]) for config in self.uav_configs.values())
+        default_goal_zs = ",".join(str(config["goal"]["z"]) for config in self.uav_configs.values())
+        default_drone_ids = ",".join(str(drone_id) for drone_id in self.uav_configs.keys())
+        planner_node_name = "ego_planner_v2" if self.version == "v2" else "ego_planner"
+
+        lines = [
+            self._indent(1, "<!-- ========================================== -->"),
+            self._indent(1, "<!-- Cooperative Mission Manager               -->"),
+            self._indent(1, "<!-- ========================================== -->"),
+            self._indent(1, ""),
+            self._indent(1, '<group if="$(arg enable_mission_manager)">'),
+            self._indent(2, '<node pkg="clean_uav_core" type="swarm_mission_manager.py" name="swarm_mission_manager" output="screen">'),
+            self._indent(3, f'<param name="config_file" value="{self.position_config_launch_value}"/>'),
+            self._indent(3, f'<param name="planner_node_name" value="{planner_node_name}"/>'),
+            self._indent(3, '<param name="mission_manager_mode" value="$(arg mission_manager_mode)"/>'),
+            self._indent(3, '<param name="mission_use_v1" value="$(arg mission_use_v1)"/>'),
+            self._indent(3, '<param name="mission_use_v2" value="$(arg mission_use_v2)"/>'),
+            self._indent(3, '<param name="mission_goal_topic" value="$(arg mission_goal_topic)"/>'),
+            self._indent(3, '<param name="mission_goal_topic_template" value="$(arg mission_goal_topic_template)"/>'),
+            self._indent(3, '<param name="mission_feedback_topic" value="$(arg mission_feedback_topic)"/>'),
+            self._indent(3, '<param name="mission_benchmark_track" value="$(arg mission_benchmark_track)"/>'),
+            self._indent(3, '<param name="output_dir" value="$(arg benchmark_output_dir)/0_mission_manager"/>'),
+            self._indent(3, f'<param name="default_drone_ids" value="{default_drone_ids}"/>'),
+            self._indent(3, '<param name="odom_topic_template" value="$(arg swarm_odom_topic_template)"/>'),
+            self._indent(3, '<param name="replan_info_topic_template" value="/drone_%d/$(arg planner_node_name)/planning/replan_info"/>'),
+            self._indent(3, '<param name="planner_event_topic_template" value="/drone_%d/$(arg planner_node_name)/planning/benchmark_event"/>'),
+            self._indent(3, '<param name="safety_topic_template" value="/drone_%d/$(arg planner_node_name)/grid_map/occupancy_inflate"/>'),
+            self._indent(3, '<param name="coverage_metrics_topic" value="/benchmark/coverage_metrics"/>'),
+            self._indent(3, '<param name="target_detected_topic" value="/benchmark/target_detected"/>'),
+            self._indent(3, '<param name="benchmark_stop_service" value="/benchmark/stop_session"/>'),
+            self._indent(3, '<param name="publish_rate" value="$(arg goal_publish_rate)"/>'),
+            self._indent(3, '<param name="start_delay" value="$(arg goal_start_delay)"/>'),
+            self._indent(3, '<param name="wait_for_all_uavs" value="$(arg swarm_wait_for_all_uavs)"/>'),
+            self._indent(3, '<param name="ready_z_threshold" value="$(arg planner_start_z_threshold)"/>'),
+            self._indent(3, '<param name="ready_stable_duration" value="$(arg planner_start_stable_duration)"/>'),
+            self._indent(3, '<param name="ready_timeout" value="$(arg planner_start_timeout)"/>'),
+            self._indent(3, '<param name="ready_post_delay" value="0.0"/>'),
+            self._indent(3, '<param name="goal_reached_radius_m" value="$(arg mission_goal_reached_radius_m)"/>'),
+            self._indent(3, '<param name="target_confirmation_radius_m" value="$(arg mission_target_confirmation_radius_m)"/>'),
+            self._indent(3, '<param name="support_radius_m" value="$(arg mission_support_radius_m)"/>'),
+            self._indent(3, '<param name="search_altitude_m" value="$(arg mission_search_altitude_m)"/>'),
+            self._indent(3, '<param name="waypoint_spacing_m" value="$(arg mission_waypoint_spacing_m)"/>'),
+            self._indent(3, '<param name="search_area_min_x" value="$(arg mission_search_area_min_x)"/>'),
+            self._indent(3, '<param name="search_area_max_x" value="$(arg mission_search_area_max_x)"/>'),
+            self._indent(3, '<param name="search_area_min_y" value="$(arg mission_search_area_min_y)"/>'),
+            self._indent(3, '<param name="search_area_max_y" value="$(arg mission_search_area_max_y)"/>'),
+            self._indent(3, '<param name="search_sector_count" value="$(arg mission_search_sector_count)"/>'),
+            self._indent(3, '<param name="explore_speed_mps" value="$(arg mission_explore_speed_mps)"/>'),
+            self._indent(3, '<param name="track_speed_mps" value="$(arg mission_track_speed_mps)"/>'),
+            self._indent(3, '<param name="support_speed_mps" value="$(arg mission_support_speed_mps)"/>'),
+            self._indent(3, '<param name="finish_speed_mps" value="$(arg mission_finish_speed_mps)"/>'),
+            self._indent(2, '</node>'),
+            self._indent(1, '</group>'),
+            self._indent(1, ""),
+        ]
+        return lines
+
     def _generate_dynamic_commander(self):
         lines = [
             self._indent(1, "<!-- ========================================== -->"),
             self._indent(1, "<!-- Dynamic Goal Commander                     -->"),
             self._indent(1, "<!-- ========================================== -->"),
             self._indent(1, ""),
+            self._indent(1, '<group unless="$(arg enable_mission_manager)">'),
         ]
+        drone_ids = ",".join(str(drone_id) for drone_id in self.uav_configs.keys())
+        start_xs = ",".join(str(config["start"]["x"]) for config in self.uav_configs.values())
+        start_ys = ",".join(str(config["start"]["y"]) for config in self.uav_configs.values())
+        start_zs = ",".join(str(config["start"]["z"]) for config in self.uav_configs.values())
         if self.version == "v2":
             lines.extend(
                 [
                     self._indent(1, '<node pkg="clean_uav_core" type="swarm_dynamic_commander_v2.py" name="swarm_dynamic_commander_v2" output="screen">'),
                     self._indent(2, f'<param name="config_file" value="{self.position_config_launch_value}"/>'),
+                    self._indent(2, f'<param name="default_drone_ids" value="{drone_ids}"/>'),
+                    self._indent(2, f'<param name="default_goal_xs" value="{start_xs}"/>'),
+                    self._indent(2, f'<param name="default_goal_ys" value="{start_ys}"/>'),
+                    self._indent(2, f'<param name="default_goal_zs" value="{start_zs}"/>'),
                     self._indent(2, '<param name="start_delay" value="$(arg goal_start_delay)"/>'),
                     self._indent(2, '<param name="publish_rate" value="$(arg goal_publish_rate)"/>'),
                     self._indent(2, '<param name="enable_oscillation" value="$(arg enable_oscillation)"/>'),
                     self._indent(2, '<param name="period_sec" value="$(arg goal_period_sec)"/>'),
                     self._indent(2, '<param name="goal_topic" value="$(arg planner_goal_topic)"/>'),
+                    self._indent(2, '<param name="wait_for_all_uavs" value="$(arg swarm_wait_for_all_uavs)"/>'),
+                    self._indent(2, '<param name="odom_topic_template" value="$(arg swarm_odom_topic_template)"/>'),
+                    self._indent(2, '<param name="ready_z_threshold" value="$(arg planner_start_z_threshold)"/>'),
+                    self._indent(2, '<param name="ready_stable_duration" value="$(arg planner_start_stable_duration)"/>'),
+                    self._indent(2, '<param name="ready_timeout" value="$(arg planner_start_timeout)"/>'),
+                    self._indent(2, '<param name="ready_post_delay" value="0.0"/>'),
                     self._indent(1, "</node>"),
+                    self._indent(1, "</group>"),
                     self._indent(1, ""),
                 ]
             )
@@ -616,12 +993,17 @@ class SwarmLaunchGeneratorYaml:
                 [
                     self._indent(1, '<node pkg="clean_uav_core" type="swarm_dynamic_commander.py" name="swarm_dynamic_commander" output="screen">'),
                     self._indent(2, f'<param name="config_file" value="{self.position_config_launch_value}"/>'),
+                    self._indent(2, f'<param name="default_drone_ids" value="{drone_ids}"/>'),
+                    self._indent(2, f'<param name="default_goal_xs" value="{start_xs}"/>'),
+                    self._indent(2, f'<param name="default_goal_ys" value="{start_ys}"/>'),
+                    self._indent(2, f'<param name="default_goal_zs" value="{start_zs}"/>'),
                     self._indent(2, '<param name="frame_id" value="world"/>'),
                     self._indent(2, '<param name="start_delay" value="$(arg goal_start_delay)"/>'),
                     self._indent(2, '<param name="publish_rate" value="$(arg goal_publish_rate)"/>'),
                     self._indent(2, '<param name="enable_oscillation" value="$(arg enable_oscillation)"/>'),
                     self._indent(2, '<param name="period_sec" value="$(arg goal_period_sec)"/>'),
                     self._indent(1, "</node>"),
+                    self._indent(1, "</group>"),
                     self._indent(1, ""),
                 ]
             )
@@ -706,7 +1088,9 @@ class SwarmLaunchGeneratorYaml:
         lines.extend(self._generate_gazebo_launch())
         lines.extend(self._generate_uav_instances())
         lines.extend(self._generate_swarm_trigger())
+        lines.extend(self._generate_mission_manager())
         lines.extend(self._generate_dynamic_commander())
+        lines.extend(self._generate_benchmark_suite())
         lines.extend(self._generate_v2_optional_includes())
         lines.extend(self._generate_rviz())
         lines.append("</launch>")
@@ -766,6 +1150,12 @@ def main():
     parser.add_argument("--output", type=str, default="", help="Path to the generated launch file")
     parser.add_argument("--version", type=str, default="v1", choices=SUPPORTED_VERSIONS, help="Planner stack version")
     parser.add_argument("--profile", type=str, default="original", help="Mission profile name from mission_profiles")
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=1.0,
+        help="XY position scale factor applied to all spawn and goal coordinates (default: 1.0)",
+    )
     args = parser.parse_args()
 
     try:
@@ -780,6 +1170,7 @@ def main():
             version=args.version,
             profile=args.profile,
             emit_legacy_variants=not args.output,
+            scale=args.scale,
         )
         generated_paths = generator.save()
     except (FileNotFoundError, SwarmConfigError) as error:

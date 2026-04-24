@@ -1,0 +1,4 @@
+# Arbiter-only hidden target for cooperative search missions.
+# UAV-side planners must not receive these coordinates before discovery.
+target_positions:
+  - [ -15.0, 0.0, 1.2 ]

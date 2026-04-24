@@ -83,6 +83,7 @@ private:
 
 	int rounds_{0};
 	int last_expanded_nodes_{0};
+	bool debug_logging_{false};
 
 public:
 	typedef std::shared_ptr<AStar> Ptr;
@@ -91,6 +92,7 @@ public:
 	~AStar();
 
 	void initGridMap(GridMap::Ptr occ_map, const Eigen::Vector3i pool_size);
+	inline void setDebugLogging(const bool enabled) { debug_logging_ = enabled; }
 
 	ASTAR_RET AstarSearch(const double step_size, Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
 

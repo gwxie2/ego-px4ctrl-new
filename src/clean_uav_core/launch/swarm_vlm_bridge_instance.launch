@@ -1,0 +1,57 @@
+<launch>
+  <arg name="drone_id" default="0"/>
+  <arg name="drone_ns" default="$(eval 'drone_%s' % arg('drone_id'))"/>
+  <arg name="sim_ns" default="$(eval 'iris_%s' % arg('drone_id'))"/>
+
+  <arg name="output_mode" default="auto"/>
+  <arg name="detector_backend" default="manual"/>
+  <arg name="allow_manual_pixel_override" default="true"/>
+  <arg name="default_text_query" default=""/>
+  <arg name="enable_cli" default="true"/>
+  <arg name="use_camera_info" default="false"/>
+  <arg name="require_rgb_for_manual_input" default="false"/>
+
+  <arg name="odom_topic" default="odom"/>
+  <arg name="depth_topic_raw" default="$(eval '/%s/realsense/depth_camera/depth/image_raw' % arg('sim_ns'))"/>
+  <arg name="image_topic_raw" default="$(eval '/%s/realsense/depth_camera/color/image_raw' % arg('sim_ns'))"/>
+  <arg name="camera_info_topic" default="$(eval '/%s/realsense/depth_camera/color/camera_info' % arg('sim_ns'))"/>
+
+  <arg name="goal_topic_v1" default="$(eval '/%s/goal' % arg('drone_ns'))"/>
+  <arg name="goal_topic_v2" default="/goal_with_id"/>
+  <arg name="frame_id" default="world"/>
+
+  <arg name="map_size_z" default="5.0"/>
+  <arg name="virtual_ceil_height" default="3.0"/>
+
+  <arg name="fx" default="554.254691191187"/>
+  <arg name="fy" default="554.254691191187"/>
+  <arg name="cx" default="320.5"/>
+  <arg name="cy" default="240.5"/>
+
+  <group ns="$(arg drone_ns)">
+    <node pkg="clean_uav_core" type="vlm_bridge.py" name="vlm_bridge" output="screen">
+      <param name="drone_id" value="$(arg drone_id)"/>
+      <param name="output_mode" value="$(arg output_mode)"/>
+      <param name="detector_backend" value="$(arg detector_backend)"/>
+      <param name="allow_manual_pixel_override" value="$(arg allow_manual_pixel_override)"/>
+      <param name="default_text_query" value="$(arg default_text_query)"/>
+      <param name="enable_cli" value="$(arg enable_cli)"/>
+      <param name="use_camera_info" value="$(arg use_camera_info)"/>
+      <param name="require_rgb_for_manual_input" value="$(arg require_rgb_for_manual_input)"/>
+      <param name="goal_topic_v1" value="$(arg goal_topic_v1)"/>
+      <param name="goal_topic_v2" value="$(arg goal_topic_v2)"/>
+      <param name="frame_id" value="$(arg frame_id)"/>
+      <param name="map_size_z" value="$(arg map_size_z)"/>
+      <param name="virtual_ceil_height" value="$(arg virtual_ceil_height)"/>
+      <param name="fx" value="$(arg fx)"/>
+      <param name="fy" value="$(arg fy)"/>
+      <param name="cx" value="$(arg cx)"/>
+      <param name="cy" value="$(arg cy)"/>
+
+      <remap from="~image_raw" to="$(arg image_topic_raw)"/>
+      <remap from="~depth_raw" to="$(arg depth_topic_raw)"/>
+      <remap from="~odom" to="$(arg odom_topic)"/>
+      <remap from="~camera_info" to="$(arg camera_info_topic)"/>
+    </node>
+  </group>
+</launch>

@@ -3,6 +3,26 @@
 using namespace std;
 using namespace Eigen;
 
+namespace
+{
+void logIndexOutOfPool(const char *label, const Eigen::Vector3d &point, const Eigen::Vector3d &center,
+                       const Eigen::Vector3i &center_idx, const Eigen::Vector3i &pool_size,
+                       const double inv_step_size)
+{
+    const Eigen::Vector3i raw_idx = ((point - center) * inv_step_size + Eigen::Vector3d(0.5, 0.5, 0.5)).cast<int>() + center_idx;
+    const Eigen::Vector3i low_margin = raw_idx;
+    const Eigen::Vector3i high_margin = raw_idx - (pool_size - Eigen::Vector3i::Ones());
+    ROS_WARN("[Astar][debug] %s point=(%.3f, %.3f, %.3f) raw_idx=(%d,%d,%d) center=(%.3f, %.3f, %.3f) pool=(%d,%d,%d) low_margin=(%d,%d,%d) high_margin=(%d,%d,%d)",
+             label,
+             point.x(), point.y(), point.z(),
+             raw_idx.x(), raw_idx.y(), raw_idx.z(),
+             center.x(), center.y(), center.z(),
+             pool_size.x(), pool_size.y(), pool_size.z(),
+             low_margin.x(), low_margin.y(), low_margin.z(),
+             high_margin.x(), high_margin.y(), high_margin.z());
+}
+}
+
 AStar::~AStar()
 {
     for (int i = 0; i < POOL_SIZE_(0); i++)
@@ -90,8 +110,23 @@ vector<GridNodePtr> AStar::retrievePath(GridNodePtr current)
 
 bool AStar::ConvertToIndexAndAdjustStartEndPoints(Vector3d start_pt, Vector3d end_pt, Vector3i &start_idx, Vector3i &end_idx)
 {
-    if (!Coord2Index(start_pt, start_idx) || !Coord2Index(end_pt, end_idx))
+    if (!Coord2Index(start_pt, start_idx))
+    {
+        if (debug_logging_)
+        {
+            logIndexOutOfPool("start_init", start_pt, center_, CENTER_IDX_, POOL_SIZE_, inv_step_size_);
+        }
         return false;
+    }
+
+    if (!Coord2Index(end_pt, end_idx))
+    {
+        if (debug_logging_)
+        {
+            logIndexOutOfPool("end_init", end_pt, center_, CENTER_IDX_, POOL_SIZE_, inv_step_size_);
+        }
+        return false;
+    }
 
     int occ;
     if (checkOccupancy(Index2Coord(start_idx)))
@@ -103,6 +138,10 @@ bool AStar::ConvertToIndexAndAdjustStartEndPoints(Vector3d start_pt, Vector3d en
             // cout << "start_pt=" << start_pt.transpose() << endl;
             if (!Coord2Index(start_pt, start_idx))
             {
+                if (debug_logging_)
+                {
+                    logIndexOutOfPool("start_adjusted", start_pt, center_, CENTER_IDX_, POOL_SIZE_, inv_step_size_);
+                }
                 return false;
             }
 
@@ -124,6 +163,10 @@ bool AStar::ConvertToIndexAndAdjustStartEndPoints(Vector3d start_pt, Vector3d en
             // cout << "end_pt=" << end_pt.transpose() << endl;
             if (!Coord2Index(end_pt, end_idx))
             {
+                if (debug_logging_)
+                {
+                    logIndexOutOfPool("end_adjusted", end_pt, center_, CENTER_IDX_, POOL_SIZE_, inv_step_size_);
+                }
                 return false;
             }
 
@@ -152,6 +195,15 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
     Vector3i start_idx, end_idx;
     if (!ConvertToIndexAndAdjustStartEndPoints(start_pt, end_pt, start_idx, end_idx))
     {
+        if (debug_logging_)
+        {
+            ROS_WARN("[Astar][debug] init_err start=(%.3f, %.3f, %.3f) end=(%.3f, %.3f, %.3f) center=(%.3f, %.3f, %.3f) step=%.3f pool=(%d,%d,%d)",
+                     start_pt.x(), start_pt.y(), start_pt.z(),
+                     end_pt.x(), end_pt.y(), end_pt.z(),
+                     center_.x(), center_.y(), center_.z(),
+                     step_size_,
+                     POOL_SIZE_.x(), POOL_SIZE_.y(), POOL_SIZE_.z());
+        }
         ROS_ERROR("Unable to handle the initial or end point, force return!");
         last_expanded_nodes_ = 0;
         return ASTAR_RET::INIT_ERR;
@@ -259,6 +311,15 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
         ros::Time time_2 = ros::Time::now();
         if ((time_2 - time_1).toSec() > 0.2)
         {
+            if (debug_logging_)
+            {
+                ROS_WARN("[Astar][debug] search_timeout expanded=%d start_idx=(%d,%d,%d) end_idx=(%d,%d,%d) center=(%.3f, %.3f, %.3f) step=%.3f",
+                         num_iter,
+                         start_idx.x(), start_idx.y(), start_idx.z(),
+                         end_idx.x(), end_idx.y(), end_idx.z(),
+                         center_.x(), center_.y(), center_.z(),
+                         step_size_);
+            }
             ROS_WARN("Failed in A star path searching !!! 0.2 seconds time limit exceeded.");
             last_expanded_nodes_ = num_iter;
             return ASTAR_RET::SEARCH_ERR;
@@ -269,6 +330,17 @@ ASTAR_RET AStar::AstarSearch(const double step_size, Vector3d start_pt, Vector3d
 
     if ((time_2 - time_1).toSec() > 0.1)
         ROS_WARN("Time consume in A star path finding is %.3fs, iter=%d", (time_2 - time_1).toSec(), num_iter);
+
+    if (debug_logging_)
+    {
+        ROS_WARN("[Astar][debug] search_failed expanded=%d start_idx=(%d,%d,%d) end_idx=(%d,%d,%d) center=(%.3f, %.3f, %.3f) step=%.3f pool=(%d,%d,%d)",
+                 num_iter,
+                 start_idx.x(), start_idx.y(), start_idx.z(),
+                 end_idx.x(), end_idx.y(), end_idx.z(),
+                 center_.x(), center_.y(), center_.z(),
+                 step_size_,
+                 POOL_SIZE_.x(), POOL_SIZE_.y(), POOL_SIZE_.z());
+    }
 
     last_expanded_nodes_ = num_iter;
     return ASTAR_RET::SEARCH_ERR;

@@ -15,9 +15,11 @@ namespace ego_planner
       const Eigen::MatrixXd &initInnerPts, const Eigen::VectorXd &initT,
       double &final_cost)
   {
+    last_failure_detail_.clear();
     if (initInnerPts.cols() != (initT.size() - 1))
     {
       ROS_ERROR("initInnerPts.cols() != (initT.size()-1)");
+      last_failure_detail_ = "invalid_inner_point_count";
       return false;
     }
 
@@ -25,6 +27,10 @@ namespace ego_planner
     ros::Time t0 = ros::Time::now(), t1, t2;
     int restart_nums = 0, rebound_times = 0;
     bool flag_force_return, flag_still_unsafe, flag_success, flag_swarm_too_close;
+    int last_result = 0;
+    bool last_flag_force_return = false;
+    bool last_flag_still_unsafe = false;
+    bool last_flag_swarm_too_close = false;
     multitopology_data_.initial_obstacles_avoided = false;
     const int swarm_priority_index = drone_id_ > 0 ? drone_id_ : 0;
     wei_swarm_mod_ = wei_swarm_ * (1.0 + wei_swarm_symmetry_gain_ * swarm_priority_index);
@@ -125,8 +131,52 @@ namespace ego_planner
         ROS_WARN_COND(VERBOSE_OUTPUT, "Solver error. Return = %d, %s. Skip this planning.", result, lbfgs::lbfgs_strerror(result));
       }
 
+      last_result = result;
+      last_flag_force_return = flag_force_return;
+      last_flag_still_unsafe = flag_still_unsafe;
+      last_flag_swarm_too_close = flag_swarm_too_close;
+
     } while ((flag_still_unsafe && restart_nums < 3) ||
              (flag_force_return && force_stop_type_ == STOP_FOR_REBOUND && rebound_times <= 20));
+
+    if (!flag_success)
+    {
+      if (last_flag_swarm_too_close)
+      {
+        last_failure_detail_ = "swarm_clearance_unresolved";
+      }
+      else if (last_flag_still_unsafe)
+      {
+        last_failure_detail_ = "fine_collision_unresolved";
+      }
+      else if (last_flag_force_return && force_stop_type_ == STOP_FOR_REBOUND)
+      {
+        last_failure_detail_ = "rebound_retry_exhausted";
+      }
+      else if (last_flag_force_return && force_stop_type_ == STOP_FOR_ERROR)
+      {
+        if (last_failure_detail_.empty())
+        {
+          last_failure_detail_ = "forced_stop_error";
+        }
+      }
+      else if (last_result == lbfgs::LBFGSERR_CANCELED)
+      {
+        last_failure_detail_ = "lbfgs_canceled";
+      }
+      else if (last_result == lbfgs::LBFGSERR_MAXIMUMITERATION)
+      {
+        last_failure_detail_ = "lbfgs_max_iteration_without_feasible_result";
+      }
+      else if (last_result != 0)
+      {
+        last_failure_detail_ = "lbfgs_solver_error";
+      }
+      else if (last_failure_detail_.empty())
+      {
+        last_failure_detail_ = "optimizer_failed_unknown";
+      }
+    }
 
     return flag_success;
   }
@@ -204,6 +254,15 @@ namespace ego_planner
     return true;
   }
 
+  void PolyTrajOptimizer::setEnvironment(const GridMap::Ptr &map)
+  {
+    grid_map_ = map;
+
+    a_star_.reset(new AStar);
+    a_star_->initGridMap(grid_map_, Eigen::Vector3i(astar_pool_size_, astar_pool_size_, astar_pool_size_));
+    a_star_->setDebugLogging(astar_debug_logging_);
+  }
+
   /* check collision and set {p,v} pairs to constrain points */
   PolyTrajOptimizer::CHK_RET PolyTrajOptimizer::finelyCheckAndSetConstraintPoints(
       std::vector<std::pair<int, int>> &segments,
@@ -232,6 +291,7 @@ namespace ego_planner
     PtsChk_t pts_check;
     if (!computePointsToCheck(traj, i_end, pts_check))
     {
+      last_failure_detail_ = "constraint_points_sampling_failed";
       return CHK_RET::ERR;
     }
 
@@ -296,7 +356,7 @@ namespace ego_planner
     {
       // Search from back to head
       Eigen::Vector3d in(init_points.col(segment_ids[i].second)), out(init_points.col(segment_ids[i].first));
-      ASTAR_RET ret = a_star_->AstarSearch(grid_map_->getResolution(), in, out);
+      ASTAR_RET ret = a_star_->AstarSearch(astar_step_factor_ * grid_map_->getResolution(), in, out);
       last_astar_expanded_nodes_ += a_star_->getLastExpandedNodes();
       if (ret == ASTAR_RET::SUCCESS)
       {
@@ -312,6 +372,7 @@ namespace ego_planner
       else
       {
         ROS_WARN_COND(VERBOSE_OUTPUT, "A-star error, force return!");
+        last_failure_detail_ = "init_astar_search_failed";
         return CHK_RET::ERR;
       }
     }
@@ -610,6 +671,7 @@ namespace ego_planner
         {
           ROS_WARN("Local target in collision, skip this planning.");
 
+          last_failure_detail_ = "rebound_local_target_in_collision";
           force_stop_type_ = STOP_FOR_ERROR;
           return false;
         }
@@ -627,7 +689,7 @@ namespace ego_planner
       {
         /*** a star search ***/
         Eigen::Vector3d in(cps_.points.col(segment_ids[i].second)), out(cps_.points.col(segment_ids[i].first));
-        ASTAR_RET ret = a_star_->AstarSearch(/*(in-out).norm()/10+0.05*/ grid_map_->getResolution(), in, out);
+        ASTAR_RET ret = a_star_->AstarSearch(/*(in-out).norm()/10+0.05*/ astar_step_factor_ * grid_map_->getResolution(), in, out);
         last_astar_expanded_nodes_ += a_star_->getLastExpandedNodes();
         if (ret == ASTAR_RET::SUCCESS)
         {
@@ -1645,14 +1707,9 @@ namespace ego_planner
     nh.param("optimization/max_vel", max_vel_, -1.0);
     nh.param("optimization/max_acc", max_acc_, -1.0);
     nh.param("optimization/max_jer", max_jer_, -1.0);
-  }
-
-  void PolyTrajOptimizer::setEnvironment(const GridMap::Ptr &map)
-  {
-    grid_map_ = map;
-
-    a_star_.reset(new AStar);
-    a_star_->initGridMap(grid_map_, Eigen::Vector3i(100, 100, 100));
+    nh.param("optimization/astar_pool_size", astar_pool_size_, 100);
+    nh.param("optimization/astar_step_factor", astar_step_factor_, 1.0);
+    nh.param("optimization/astar_debug_logging", astar_debug_logging_, false);
   }
 
   void PolyTrajOptimizer::setControlPoints(const Eigen::MatrixXd &points)

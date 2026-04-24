@@ -171,11 +171,16 @@ catkin_install_python(PROGRAMS
   scripts/dynamic_dual_goal_publisher.py
   scripts/dual_traj_start_trigger.py
   scripts/goal_point_publisher.py
+  scripts/vlm_bridge.py
   scripts/mission_progress_monitor.py
   scripts/benchmark_manager.py
+  scripts/benchmark_coverage_engine.py
+  scripts/swarm_mission_manager.py
+  scripts/sensor_noise_injector.py
   scripts/multi_vins_bridge.py
   scripts/odom_pose_adapter.py
   scripts/px4_param_bootstrap.py
+  scripts/replay_path_publisher.py
   scripts/swarm_dynamic_commander.py
   scripts/swarm_dynamic_commander_v2.py
   scripts/swarm_launch_generator.py

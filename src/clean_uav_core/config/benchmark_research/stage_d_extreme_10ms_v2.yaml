@@ -1,0 +1,220 @@
+# =============================================================
+# Stage D - Extreme 10m/s Condition Adaptation
+#
+# 目标：以 10m/s 为目标环境，扫描控制刚性、长程预判与安全冗余组合。
+#
+# 说明：
+# - Kv 的强弱由 campaign launch override 覆盖 `px4ctrl_kv`。
+# - local_update_range 与 inflation 也允许在 campaign 中做细粒度覆盖。
+# =============================================================
+
+simulation:
+  world_path: "swarm_benchmark_forest_phase2_x1.5.world"
+  position_scale: 1.5
+  gui: false
+  use_rviz: false
+  enable_vins: false
+  use_truth_odom_runtime: true
+  sensor_degradation:
+    enabled: false
+    mode: clean
+
+physical_uav:
+  mass: 1.2
+  hover_percent: 0.58
+  pid_gain:
+    Kp: 4.5
+    Kv: 2.3
+
+planning_base:
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+  resolution: 0.1
+  ground_height: -0.01
+  odom_depth_timeout: 0.5
+  grid_map_depth_filter_mindist: 0.1
+  local_update_range_x: 30.0
+  local_update_range_y: 30.0
+  local_update_range_z: 4.5
+
+mission_profiles:
+  extreme_baseline:
+    max_vel: 10.0
+    max_acc: 6.5
+    max_jerk: 12.0
+    planning_horizon: 20.0
+    replan_time: 0.2
+    emergency_time: 0.6
+    weight_time: 120.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.28
+    swarm_clearance: 0.75
+    swarm_collision_weight: 1.0
+    swarm_weight: 22000.0
+    swarm_symmetry_gain: 0.02
+
+  predictive_long_range:
+    max_vel: 10.0
+    max_acc: 8.0
+    max_jerk: 16.0
+    planning_horizon: 30.0
+    replan_time: 0.1
+    emergency_time: 0.4
+    weight_time: 220.0
+    lambda_smooth: 5.5
+    grid_map_obstacles_inflation: 0.25
+    swarm_clearance: 0.85
+    swarm_collision_weight: 1.0
+    swarm_weight: 26000.0
+    swarm_symmetry_gain: 0.03
+
+  safety_margin_biased:
+    max_vel: 10.0
+    max_acc: 7.5
+    max_jerk: 15.0
+    planning_horizon: 27.0
+    replan_time: 0.12
+    emergency_time: 0.45
+    weight_time: 180.0
+    lambda_smooth: 6.0
+    grid_map_obstacles_inflation: 0.32
+    swarm_clearance: 1.0
+    swarm_collision_weight: 1.1
+    swarm_weight: 28000.0
+    swarm_symmetry_gain: 0.04
+
+  extreme_combo:
+    max_vel: 10.0
+    max_acc: 7.0
+    max_jerk: 14.0
+    planning_horizon: 30.0
+    replan_time: 0.08
+    emergency_time: 0.4
+    weight_time: 240.0
+    lambda_smooth: 6.5
+    grid_map_obstacles_inflation: 0.3
+    swarm_clearance: 0.95
+    swarm_collision_weight: 1.1
+    swarm_weight: 30000.0
+
+  # ============================================================
+  # Stage G profiles — x1.5 world adaptation
+  # 基于以下根因调整：
+  #   1. 路径长度 45m（原始 30m），planning_horizon/local_update_range 需同步缩放
+  #   2. drone_2 路径在 t=15.1m 被 pillar(6,4.5) 物理遮挡，需要规划器更早看到并绕行
+  #   3. 减小 inflation 以拓宽 MINCO 收敛空间（通道 eff_gap 从 4.01m 提升）
+  # ============================================================
+
+  # G1: 最核心修复 — horizon+range 全部 ×1.5，inflation 微降
+  g1_scaled_base:
+    max_vel: 10.0
+    max_acc: 6.5
+    max_jerk: 13.0
+    planning_horizon: 30.0
+    replan_time: 0.2
+    emergency_time: 0.6
+    weight_time: 120.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.28
+    swarm_clearance: 0.775
+    swarm_collision_weight: 1.0
+    swarm_weight: 22000.0
+    swarm_symmetry_gain: 0.02
+
+  # G2: horizon+range ×1.5，inflation 进一步降低给 MINCO 更多余量
+  g2_scaled_inf25:
+    max_vel: 10.0
+    max_acc: 6.5
+    max_jerk: 13.0
+    planning_horizon: 30.0
+    replan_time: 0.2
+    emergency_time: 0.6
+    weight_time: 120.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.25
+    swarm_clearance: 0.775
+    swarm_collision_weight: 1.0
+    swarm_weight: 22000.0
+    swarm_symmetry_gain: 0.02
+
+  # G3: 保持 horizon=30，inflation=0.22（给 MINCO 最大通道余量）
+  g3_scaled_inf22:
+    max_vel: 10.0
+    max_acc: 6.5
+    max_jerk: 13.0
+    planning_horizon: 30.0
+    replan_time: 0.2
+    emergency_time: 0.6
+    weight_time: 120.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.22
+    swarm_clearance: 0.775
+    swarm_collision_weight: 1.0
+    swarm_weight: 22000.0
+    swarm_symmetry_gain: 0.02
+
+  # G4: 控制变量 — 仅增大 horizon，range 不变，验证 horizon 的独立贡献
+  g4_hor30_range30:
+    max_vel: 10.0
+    max_acc: 6.5
+    max_jerk: 13.0
+    planning_horizon: 30.0
+    replan_time: 0.2
+    emergency_time: 0.6
+    weight_time: 120.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.28
+    swarm_clearance: 0.775
+    swarm_collision_weight: 1.0
+    swarm_weight: 22000.0
+    swarm_symmetry_gain: 0.02
+    swarm_symmetry_gain: 0.04
+
+  # G5: 在 G4 基础上提高 inflation，优先压制中途冻结与贴障飞行
+  g5_inf30_lp03:
+    max_vel: 10.0
+    max_acc: 6.5
+    max_jerk: 13.0
+    planning_horizon: 30.0
+    replan_time: 0.2
+    emergency_time: 0.6
+    weight_time: 120.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.30
+    swarm_clearance: 0.775
+    swarm_collision_weight: 1.0
+    swarm_weight: 22000.0
+    swarm_symmetry_gain: 0.04
+
+  # G6: 可视化低速实验，降低到 3m/s 便于观察起飞和地图更新
+  g6_viz_3ms:
+    max_vel: 3.0
+    max_acc: 3.5
+    max_jerk: 6.0
+    planning_horizon: 15.0
+    replan_time: 0.5
+    emergency_time: 0.8
+    weight_time: 50.0
+    lambda_smooth: 2.0
+    grid_map_obstacles_inflation: 0.25
+    swarm_clearance: 0.6
+    swarm_collision_weight: 0.7
+    swarm_weight: 15000.0
+    swarm_symmetry_gain: 0.01
+
+  # G7: 进一步降到 1.2m/s，保留 RViz、关闭 Gazebo GUI 以降低启动负担
+  g7_viz_1p2ms:
+    max_vel: 1.2
+    max_acc: 2.8
+    max_jerk: 4.0
+    planning_horizon: 7.5
+    replan_time: 1.0
+    emergency_time: 1.0
+    weight_time: 10.0
+    lambda_smooth: 1.0
+    grid_map_obstacles_inflation: 0.45
+    swarm_clearance: 0.4
+    swarm_collision_weight: 0.6
+    swarm_weight: 12000.0
+    swarm_symmetry_gain: 0.0

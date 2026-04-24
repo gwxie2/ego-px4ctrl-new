@@ -52,6 +52,12 @@ pkill -9 -f "swarm_dynamic_commander" 2>/dev/null
 pkill -9 -f "swarm_traj_trigger" 2>/dev/null
 echo "  ✅ Python scripts cleaned"
 
+# 6. 清理源码树中的明显残留文件
+echo "[6/6] Cleaning source-tree artifacts..."
+find src -type f \( -name "*.bag.active" -o -name "*~" -o -name "*（复件）.cpp" -o -name "*_copy.cpp" -o -name "*_copy.cc" \) -delete 2>/dev/null || true
+find src -type l ! -exec test -e {} \; -delete 2>/dev/null || true
+echo "  ✅ Source-tree artifacts cleaned"
+
 echo ""
 echo "=========================================="
 echo "✅ Cleanup Complete!"

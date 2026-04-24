@@ -71,6 +71,7 @@ namespace ego_planner
     int waypoint_num_, wpt_id_;
     double planning_horizen_;
     double emergency_time_;
+    double astar_latency_predict_s_;
     double swarm_acceptance_radius_;
     double swarm_time_warn_threshold_;
     double swarm_time_reject_threshold_;
@@ -79,10 +80,12 @@ namespace ego_planner
     bool enable_ground_height_measurement_;
     bool flag_escape_emergency_;
     bool swarm_filter_far_trajectories_;
+    double swarm_pre_traj_wait_timeout_;
 
     bool have_trigger_, have_target_, have_odom_, have_new_target_, have_recv_pre_agent_, touch_goal_, mandatory_stop_;
     FSM_EXEC_STATE exec_state_;
     int continously_called_times_{0};
+    ros::Time sequential_start_enter_stamp_;
 
     Eigen::Vector3d start_pt_, start_vel_, start_acc_;   // start state
     Eigen::Vector3d final_goal_;                             // goal state

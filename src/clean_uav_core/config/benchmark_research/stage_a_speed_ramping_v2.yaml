@@ -1,0 +1,117 @@
+# =============================================================
+# Stage A - Speed Ramping Baseline for Swarm Benchmark Research
+#
+# 目标：在尽量少的结构性调优下，建立 V2 在 1.2m/s 到 10.0m/s 的
+# 速度梯度基线，并在阶段 A 中为同档 V1 提供参考对照。
+#
+# 说明：
+# - 本文件只表达“速度梯度” profile，不引入阶段 B/C/D 的定向修复策略。
+# - benchmark_default_vmax 等元数据由 campaign 运行器以 launch override 注入。
+# - 7m/s 与 10m/s 档建议在 campaign 中配合早停策略使用。
+# =============================================================
+
+simulation:
+  world_path: "swarm_benchmark_forest_phase2_x1.5.world"
+  position_scale: 1.5
+  gui: false
+  use_rviz: false
+  enable_vins: false
+  use_truth_odom_runtime: true
+  sensor_degradation:
+    enabled: false
+    mode: clean
+
+physical_uav:
+  mass: 1.2
+  hover_percent: 0.58
+  pid_gain:
+    Kp: 4.5
+    Kv: 2.0
+
+planning_base:
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+  resolution: 0.1
+  ground_height: -0.01
+  odom_depth_timeout: 0.5
+  grid_map_depth_filter_mindist: 0.1
+  local_update_range_x: 15.0
+  local_update_range_y: 15.0
+  local_update_range_z: 4.5
+
+mission_profiles:
+  speed_1p2:
+    max_vel: 1.2
+    max_acc: 2.8
+    max_jerk: 4.0
+    planning_horizon: 7.5
+    replan_time: 1.0
+    emergency_time: 1.0
+    weight_time: 10.0
+    lambda_smooth: 1.0
+    grid_map_obstacles_inflation: 0.45
+    swarm_clearance: 0.35
+    swarm_collision_weight: 0.5
+    swarm_weight: 10000.0
+    swarm_symmetry_gain: 0.0
+
+  speed_3p0:
+    max_vel: 3.0
+    max_acc: 3.5
+    max_jerk: 6.0
+    planning_horizon: 10.0
+    replan_time: 0.7
+    emergency_time: 0.9
+    weight_time: 30.0
+    lambda_smooth: 1.4
+    grid_map_obstacles_inflation: 0.4
+    swarm_clearance: 0.4
+    swarm_collision_weight: 0.6
+    swarm_weight: 12000.0
+    swarm_symmetry_gain: 0.0
+
+  speed_5p0:
+    max_vel: 5.0
+    max_acc: 4.0
+    max_jerk: 8.0
+    planning_horizon: 15.0
+    replan_time: 0.5
+    emergency_time: 0.8
+    weight_time: 50.0
+    lambda_smooth: 2.0
+    grid_map_obstacles_inflation: 0.3
+    swarm_clearance: 0.6
+    swarm_collision_weight: 0.7
+    swarm_weight: 15000.0
+    swarm_symmetry_gain: 0.01
+
+  speed_7p0:
+    max_vel: 7.0
+    max_acc: 5.5
+    max_jerk: 11.0
+    planning_horizon: 20.0
+    replan_time: 0.3
+    emergency_time: 0.7
+    weight_time: 120.0
+    lambda_smooth: 3.0
+    grid_map_obstacles_inflation: 0.28
+    swarm_clearance: 0.7
+    swarm_collision_weight: 0.9
+    swarm_weight: 20000.0
+    swarm_symmetry_gain: 0.02
+
+  speed_10p0:
+    max_vel: 10.0
+    max_acc: 8.0
+    max_jerk: 16.0
+    planning_horizon: 25.0
+    replan_time: 0.1
+    emergency_time: 0.5
+    weight_time: 200.0
+    lambda_smooth: 5.0
+    grid_map_obstacles_inflation: 0.25
+    swarm_clearance: 0.8
+    swarm_collision_weight: 1.0
+    swarm_weight: 25000.0
+    swarm_symmetry_gain: 0.03

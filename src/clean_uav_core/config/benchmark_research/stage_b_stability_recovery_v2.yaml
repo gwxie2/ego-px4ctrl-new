@@ -1,0 +1,113 @@
+# =============================================================
+# Stage B - V2 Stability Recovery at 1.2m/s
+#
+# 目标：围绕 1.2m/s 基线下已观察到的病态表现，构造可组合的修复档位。
+#
+# 说明：
+# - planning_horizon 在 profile 中直接表达。
+# - local_update_range 与部分细分扫描由 campaign launch override 覆盖。
+# - 该文件优先关注“止血”，不追求速度提升。
+# =============================================================
+
+simulation:
+  world_path: "swarm_benchmark_forest_phase2_x1.5.world"
+  position_scale: 1.5
+  gui: false
+  use_rviz: false
+  enable_vins: false
+  use_truth_odom_runtime: true
+
+physical_uav:
+  mass: 1.2
+  hover_percent: 0.58
+  pid_gain:
+    Kp: 4.5
+    Kv: 2.0
+
+planning_base:
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+  resolution: 0.1
+  ground_height: -0.01
+  odom_depth_timeout: 0.5
+  grid_map_depth_filter_mindist: 0.1
+  local_update_range_x: 15.0
+  local_update_range_y: 15.0
+  local_update_range_z: 4.5
+
+mission_profiles:
+  pathological_baseline:
+    max_vel: 1.2
+    max_acc: 2.8
+    max_jerk: 4.0
+    planning_horizon: 7.5
+    replan_time: 1.0
+    emergency_time: 1.0
+    weight_time: 10.0
+    lambda_smooth: 1.0
+    grid_map_obstacles_inflation: 0.45
+    swarm_clearance: 0.35
+    swarm_collision_weight: 0.5
+    swarm_weight: 10000.0
+    swarm_symmetry_gain: 0.0
+
+  perception_aligned:
+    max_vel: 1.2
+    max_acc: 2.6
+    max_jerk: 3.8
+    planning_horizon: 11.0
+    replan_time: 0.6
+    emergency_time: 0.7
+    weight_time: 12.0
+    lambda_smooth: 1.35
+    grid_map_obstacles_inflation: 0.45
+    swarm_clearance: 0.45
+    swarm_collision_weight: 0.65
+    swarm_weight: 14500.0
+    swarm_symmetry_gain: 0.0
+
+  obstacle_guarded:
+    max_vel: 1.2
+    max_acc: 2.6
+    max_jerk: 4.0
+    planning_horizon: 8.5
+    replan_time: 0.8
+    emergency_time: 0.8
+    weight_time: 10.0
+    lambda_smooth: 1.2
+    grid_map_obstacles_inflation: 0.5
+    swarm_clearance: 0.5
+    swarm_collision_weight: 0.7
+    swarm_weight: 15000.0
+    swarm_symmetry_gain: 0.0
+
+  high_frequency_replan:
+    max_vel: 1.2
+    max_acc: 2.3
+    max_jerk: 3.6
+    planning_horizon: 9.5
+    replan_time: 0.3
+    emergency_time: 0.45
+    weight_time: 11.0
+    lambda_smooth: 1.25
+    grid_map_obstacles_inflation: 0.5
+    swarm_clearance: 0.5
+    swarm_collision_weight: 0.72
+    swarm_weight: 16500.0
+    swarm_symmetry_gain: 0.0
+
+  recovery_combo:
+    max_vel: 1.2
+    max_acc: 2.2
+    max_jerk: 3.2
+    planning_horizon: 12.0
+    replan_time: 0.35
+    emergency_time: 0.45
+    weight_time: 16.0
+    lambda_smooth: 1.8
+    grid_map_obstacles_inflation: 0.55
+    swarm_clearance: 0.6
+    swarm_collision_weight: 0.9
+    swarm_weight: 22000.0
+    swarm_symmetry_gain: 0.0

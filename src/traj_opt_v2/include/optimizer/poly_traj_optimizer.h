@@ -1,6 +1,7 @@
 #ifndef _POLY_TRAJ_OPTIMIZER_H_
 #define _POLY_TRAJ_OPTIMIZER_H_
 
+#include <string>
 #include <Eigen/Eigen>
 #include <path_searching/dyn_a_star.h>
 #include <plan_env/grid_map.h>
@@ -81,6 +82,7 @@ namespace ego_planner
       double last_gradient_norm_final_{0.0};
       double last_cost_initial_{0.0};
       double last_cost_final_{0.0};
+      std::string last_failure_detail_;
     std::vector<double> min_ellip_dist2_; // min trajectory distance in swarm
     bool touch_goal_;
     struct MultitopologyData_t
@@ -105,6 +107,9 @@ namespace ego_planner
     double wei_time_;                                             // time weight
     double obs_clearance_, obs_clearance_soft_, swarm_clearance_; // safe distance
     double max_vel_, max_acc_, max_jer_;                          // dynamic limits
+    int astar_pool_size_{100};                                    // local A* grid pool size
+    double astar_step_factor_{1.0};                               // multiplier on grid resolution for A* step size (>1 coarser, fewer nodes)
+    bool astar_debug_logging_{false};                             // whether to log detailed A* boundary diagnostics
 
     double t_now_;
 
@@ -138,11 +143,13 @@ namespace ego_planner
         last_gradient_norm_final_ = 0.0;
         last_cost_initial_ = 0.0;
         last_cost_final_ = 0.0;
+        last_failure_detail_.clear();
       }
       inline int getLastAStarExpandedNodes(void) const { return last_astar_expanded_nodes_; }
       inline double getLastGradientNormFinal(void) const { return last_gradient_norm_final_; }
       inline double getLastCostInitial(void) const { return last_cost_initial_; }
       inline double getLastCostFinal(void) const { return last_cost_final_; }
+      inline const std::string &getLastFailureDetail(void) const { return last_failure_detail_; }
     inline const poly_traj::MinJerkOpt &getMinJerkOpt(void) { return jerkOpt_; }
     inline int get_cps_num_prePiece_(void) { return cps_num_prePiece_; }
     inline double get_swarm_clearance_(void) { return swarm_clearance_; }

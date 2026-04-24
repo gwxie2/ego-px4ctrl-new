@@ -1,0 +1,473 @@
+Panels:
+  - Class: rviz/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /drone_01
+        - /drone_01/Map Inflate drone_01
+        - /drone_11
+        - /drone_11/Map Inflate drone_11
+        - /drone_21
+        - /drone_21/Map Inflate drone_21
+      Splitter Ratio: 0.1
+    Tree Height: 320
+  - Class: rviz/Selection
+    Name: Selection
+  - Class: rviz/Tool Properties
+    Expanded:
+      - /2D Pose Estimate1
+      - /2D Nav Goal1
+      - /Publish Point1
+    Name: Tool Properties
+    Splitter Ratio: 0.5
+  - Class: rviz/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz/Time
+    Experimental: false
+    Name: Time
+    SyncMode: 0
+    SyncSource: Actual Path drone_0
+Preferences:
+  PromptSaveOnExit: true
+Toolbars:
+  toolButtonStyle: 2
+Visualization Manager:
+  Class: ""
+  Displays:
+    # ───── 背景网格 ─────
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 60
+      Reference Frame: <Fixed Frame>
+      Value: true
+
+    # ───── TF（含 tf_static）─────
+    - Class: rviz/TF
+      Enabled: false
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+      Marker Scale: 0.5
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Tree:
+        {}
+      Update Interval: 0
+      Value: false
+
+    # ══════════════════════════════
+    # drone_0  （红色系）
+    # ══════════════════════════════
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Pose
+          Color: 255; 64; 64
+          Enabled: true
+          Head Length: 0.25
+          Head Radius: 0.08
+          Name: Actual Pose drone_0
+          Queue Size: 20
+          Shaft Length: 0.45
+          Shaft Radius: 0.03
+          Shape: Arrow
+          Topic: /drone_0/replay/actual_pose
+          Unreliable: false
+          Value: true
+
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Pose
+          Color: 255; 210; 210
+          Enabled: true
+          Head Length: 0.2
+          Head Radius: 0.06
+          Name: Command Pose drone_0
+          Queue Size: 20
+          Shaft Length: 0.35
+          Shaft Radius: 0.02
+          Shape: Arrow
+          Topic: /drone_0/replay/command_pose
+          Unreliable: false
+          Value: true
+
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Path
+          Color: 255; 64; 64
+          Enabled: true
+          Head Diameter: 0.08
+          Head Length: 0.15
+          Length: 0.15
+          Line Style: Lines
+          Line Width: 0.06
+          Name: Actual Path drone_0
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 255; 85; 85
+          Pose Style: None
+          Queue Size: 10
+          Radius: 0.03
+          Shaft Diameter: 0.03
+          Shaft Length: 0.08
+          Topic: /drone_0/replay/actual_path
+          Unreliable: false
+          Value: true
+
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Path
+          Color: 255; 235; 235
+          Enabled: true
+          Head Diameter: 0.06
+          Head Length: 0.1
+          Length: 0.1
+          Line Style: Lines
+          Line Width: 0.03
+          Name: Command Path drone_0
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 255; 220; 220
+          Pose Style: None
+          Queue Size: 10
+          Radius: 0.03
+          Shaft Diameter: 0.02
+          Shaft Length: 0.08
+          Topic: /drone_0/replay/command_path
+          Unreliable: false
+          Value: true
+
+        # 膨胀障碍地图（规划层看到的环境）
+        - Alpha: 0.8
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 140; 140
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Inflate drone_0
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.1
+          Style: Boxes
+          Topic: /drone_0/ego_planner_v2/grid_map/occupancy_inflate
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: false
+          Value: true
+
+      Enabled: true
+      Name: drone_0 Group
+
+    # ══════════════════════════════
+    # drone_1  （绿色系）
+    # ══════════════════════════════
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Pose
+          Color: 64; 220; 64
+          Enabled: true
+          Head Length: 0.25
+          Head Radius: 0.08
+          Name: Actual Pose drone_1
+          Queue Size: 20
+          Shaft Length: 0.45
+          Shaft Radius: 0.03
+          Shape: Arrow
+          Topic: /drone_1/replay/actual_pose
+          Unreliable: false
+          Value: true
+
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Path
+          Color: 64; 220; 64
+          Enabled: true
+          Head Diameter: 0.08
+          Head Length: 0.15
+          Length: 0.15
+          Line Style: Lines
+          Line Width: 0.06
+          Name: Actual Path drone_1
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 85; 255; 85
+          Pose Style: None
+          Queue Size: 10
+          Radius: 0.03
+          Shaft Diameter: 0.03
+          Shaft Length: 0.08
+          Topic: /drone_1/replay/actual_path
+          Unreliable: false
+          Value: true
+
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Path
+          Color: 225; 255; 225
+          Enabled: true
+          Head Diameter: 0.06
+          Head Length: 0.1
+          Length: 0.1
+          Line Style: Lines
+          Line Width: 0.03
+          Name: Command Path drone_1
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 220; 255; 220
+          Pose Style: None
+          Queue Size: 10
+          Radius: 0.03
+          Shaft Diameter: 0.02
+          Shaft Length: 0.08
+          Topic: /drone_1/replay/command_path
+          Unreliable: false
+          Value: true
+
+        - Alpha: 0.8
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 140; 255; 140
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Inflate drone_1
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.1
+          Style: Boxes
+          Topic: /drone_1/ego_planner_v2/grid_map/occupancy_inflate
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: false
+          Value: true
+
+      Enabled: true
+      Name: drone_1 Group
+
+    # ══════════════════════════════
+    # drone_2  （蓝色系）
+    # ══════════════════════════════
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Pose
+          Color: 64; 160; 255
+          Enabled: true
+          Head Length: 0.25
+          Head Radius: 0.08
+          Name: Actual Pose drone_2
+          Queue Size: 20
+          Shaft Length: 0.45
+          Shaft Radius: 0.03
+          Shape: Arrow
+          Topic: /drone_2/replay/actual_pose
+          Unreliable: false
+          Value: true
+
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Path
+          Color: 64; 160; 255
+          Enabled: true
+          Head Diameter: 0.08
+          Head Length: 0.15
+          Length: 0.15
+          Line Style: Lines
+          Line Width: 0.06
+          Name: Actual Path drone_2
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 85; 170; 255
+          Pose Style: None
+          Queue Size: 10
+          Radius: 0.03
+          Shaft Diameter: 0.03
+          Shaft Length: 0.08
+          Topic: /drone_2/replay/actual_path
+          Unreliable: false
+          Value: true
+
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Path
+          Color: 225; 240; 255
+          Enabled: true
+          Head Diameter: 0.06
+          Head Length: 0.1
+          Length: 0.1
+          Line Style: Lines
+          Line Width: 0.03
+          Name: Command Path drone_2
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 220; 235; 255
+          Pose Style: None
+          Queue Size: 10
+          Radius: 0.03
+          Shaft Diameter: 0.02
+          Shaft Length: 0.08
+          Topic: /drone_2/replay/command_path
+          Unreliable: false
+          Value: true
+
+        - Alpha: 0.8
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 140; 200; 255
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: Map Inflate drone_2
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.1
+          Style: Boxes
+          Topic: /drone_2/ego_planner_v2/grid_map/occupancy_inflate
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: false
+          Value: true
+
+      Enabled: true
+      Name: drone_2 Group
+
+  Enabled: true
+  Global Options:
+    Background Color: 32; 32; 32
+    Default Light: true
+    Fixed Frame: world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive Objects: true
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+    - Class: rviz/SetInitialPose
+      Theta std deviation: 0.2617994
+      Topic: /initialpose
+      X std deviation: 0.5
+      Y std deviation: 0.5
+    - Class: rviz/PublishPoint
+      Single click: true
+      Topic: /clicked_point
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 28
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.06
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 20
+        Y: 0
+        Z: 1.5
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.85
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: 3.1
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1080
+  QMainWindow State: 000000ff00000000fd0000000300000000000000fa00000000fc0200000001fb000000100044006900730070006c0061007900730100000000ffffffff0000001e00ffffff00000001000000000000037afc0200000003fc00000000ffffffff0000004a0100002bfa000000020200000003fb0000001200530065006c0065006300740069006f006e0100000000ffffffff0000001e00fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000000ffffffff0000001e00fffffffb0000000a005600690065007700730100000000ffffffff0000001e00fffffffb0000000800540069006d00650100000000ffffffff0000004500ffffff000000000000000000000004000000040000000800000008fc00000000
+  Hide Left Dock: false
+  Hide Right Dock: false
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: true
+  Views:
+    collapsed: true
+  Width: 1920
+  X: 60
+  Y: 40

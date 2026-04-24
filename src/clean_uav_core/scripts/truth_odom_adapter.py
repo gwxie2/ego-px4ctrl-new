@@ -14,8 +14,8 @@ class TruthOdomAdapter:
         self.odom_topic = rospy.get_param("~odom_topic", "/cleanroom/truth_odom")
         self.pose_topic = rospy.get_param("~pose_topic", "/cleanroom/truth_pose")
 
-        self.odom_pub = rospy.Publisher(self.odom_topic, Odometry, queue_size=10)
-        self.pose_pub = rospy.Publisher(self.pose_topic, PoseStamped, queue_size=10)
+        self.odom_pub = rospy.Publisher(self.odom_topic, Odometry, queue_size=10, latch=True)
+        self.pose_pub = rospy.Publisher(self.pose_topic, PoseStamped, queue_size=10, latch=True)
 
         self.model_index = None
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.model_states_callback, queue_size=1)

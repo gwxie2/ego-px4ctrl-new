@@ -61,13 +61,14 @@ namespace ego_planner
     double ts = pp_.polyTraj_piece_length / pp_.max_vel_;
 
     poly_traj::MinJerkOpt initMJO;
-    auto record_metrics = [&](double search_ms, double optimize_ms, double adjust_ms, int iter_count, uint8_t failure_reason) {
+    auto record_metrics = [&](double search_ms, double optimize_ms, double adjust_ms, int iter_count, uint8_t failure_reason, const std::string &failure_detail) {
       last_replan_search_ms_ = search_ms;
       last_replan_optimize_ms_ = optimize_ms;
       last_replan_adjust_ms_ = adjust_ms;
       last_replan_total_ms_ = search_ms + optimize_ms + adjust_ms;
       last_replan_iter_count_ = iter_count;
       last_failure_reason_ = failure_reason;
+      last_failure_detail_ = failure_detail;
       last_astar_expanded_nodes_ = ploy_traj_opt_->getLastAStarExpandedNodes();
       last_gradient_norm_final_ = ploy_traj_opt_->getLastGradientNormFinal();
       last_cost_initial_ = ploy_traj_opt_->getLastCostInitial();
@@ -77,7 +78,13 @@ namespace ego_planner
     if (!computeInitState(start_pt, start_vel, start_acc, local_target_pt, local_target_vel,
                           flag_polyInit, flag_randomPolyTraj, ts, initMJO))
     {
-      record_metrics(0.0, 0.0, 0.0, 0, quadrotor_msgs::PlannerReplanInfo::FAILURE_INIT_FAILED);
+      record_metrics(
+          0.0,
+          0.0,
+          0.0,
+          0,
+          quadrotor_msgs::PlannerReplanInfo::FAILURE_INIT_FAILED,
+          last_init_state_failure_detail_.empty() ? "compute_init_state_failed" : last_init_state_failure_detail_);
       return false;
     }
 
@@ -85,7 +92,13 @@ namespace ego_planner
     vector<std::pair<int, int>> segments;
     if (ploy_traj_opt_->finelyCheckAndSetConstraintPoints(segments, initMJO, true) == PolyTrajOptimizer::CHK_RET::ERR)
     {
-      record_metrics(0.0, 0.0, 0.0, 0, quadrotor_msgs::PlannerReplanInfo::FAILURE_INIT_FAILED);
+      record_metrics(
+          0.0,
+          0.0,
+          0.0,
+          0,
+          quadrotor_msgs::PlannerReplanInfo::FAILURE_INIT_FAILED,
+          ploy_traj_opt_->getLastFailureDetail().empty() ? "init_constraint_setup_failed" : ploy_traj_opt_->getLastFailureDetail());
       return false;
     }
 
@@ -216,7 +229,8 @@ namespace ego_planner
           t_opt.toSec() * 1000.0,
           0.0,
           best_iter_count,
-          quadrotor_msgs::PlannerReplanInfo::FAILURE_NONE);
+          quadrotor_msgs::PlannerReplanInfo::FAILURE_NONE,
+          "");
       last_astar_expanded_nodes_ = best_astar_expanded_nodes;
       last_gradient_norm_final_ = best_gradient_norm_final;
       last_cost_initial_ = best_cost_initial;
@@ -233,7 +247,8 @@ namespace ego_planner
           t_opt.toSec() * 1000.0,
           0.0,
           best_iter_count,
-          quadrotor_msgs::PlannerReplanInfo::FAILURE_OPTIMIZER_FAILED);
+          quadrotor_msgs::PlannerReplanInfo::FAILURE_OPTIMIZER_FAILED,
+          ploy_traj_opt_->getLastFailureDetail().empty() ? "optimizer_failed" : ploy_traj_opt_->getLastFailureDetail());
       last_astar_expanded_nodes_ = best_astar_expanded_nodes;
       last_gradient_norm_final_ = best_gradient_norm_final;
       last_cost_initial_ = best_cost_initial;
@@ -251,6 +266,7 @@ namespace ego_planner
       const bool flag_polyInit, const bool flag_randomPolyTraj, const double &ts,
       poly_traj::MinJerkOpt &initMJO)
   {
+    last_init_state_failure_detail_.clear();
 
     static bool flag_first_call = true;
 
@@ -319,6 +335,7 @@ namespace ego_planner
       if (id != piece_nums - 1)
       {
         ROS_ERROR("Should not happen! x_x");
+        last_init_state_failure_detail_ = "polynomial_resample_count_mismatch";
         return false;
       }
       initMJO.reset(headState, tailState, piece_nums);
@@ -329,6 +346,7 @@ namespace ego_planner
       if (traj_.global_traj.last_glb_t_of_lc_tgt < 0.0)
       {
         ROS_ERROR("You are initialzing a trajectory from a previous optimal trajectory, but no previous trajectories up to now.");
+        last_init_state_failure_detail_ = "no_previous_local_traj";
         return false;
       }
 
@@ -338,6 +356,7 @@ namespace ego_planner
       if (t_to_lc_end < 0)
       {
         ROS_INFO("t_to_lc_end < 0, exit and wait for another call.");
+        last_init_state_failure_detail_ = "previous_local_traj_elapsed";
         return false;
       }
       double t_to_lc_tgt = t_to_lc_end +

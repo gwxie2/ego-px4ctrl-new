@@ -8,19 +8,49 @@ import signal
 import subprocess
 import threading
 import time
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import rospy
+try:
+    import psutil
+except ImportError:
+    psutil = None
 from gazebo_msgs.msg import ModelStates
 from mavros_msgs.msg import AttitudeTarget, State as MavrosState
 from nav_msgs.msg import Odometry
 from quadrotor_msgs.msg import PlannerBenchmarkEvent, PlannerReplanInfo, PositionCommand, Px4ctrlDebug
 from sensor_msgs import point_cloud2
 from sensor_msgs.msg import PointCloud2
+from std_srvs.srv import Trigger, TriggerResponse
 
 from clean_uav_core.srv import BenchmarkStartSession, BenchmarkStartSessionResponse
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+try:
+    from benchmark_coverage_engine import CoverageMemoryEngine
+except Exception:
+    CoverageMemoryEngine = None
+
+
+WORKSPACE_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")
+)
+
+
+def _resolve_workspace_path(path_text: str) -> str:
+    path_text = str(path_text).strip()
+    if not path_text:
+        return ""
+    expanded = os.path.expanduser(path_text)
+    if os.path.isabs(expanded):
+        return os.path.normpath(expanded)
+    return os.path.normpath(os.path.join(WORKSPACE_ROOT, expanded))
 
 
 MAIN_CSV_HEADERS = [
@@ -56,6 +86,10 @@ MAIN_CSV_HEADERS = [
     "safety_margin_m",
     "safety_violation",
     "control_lag_ms",
+    "command_age_ms",
+    "command_interval_ms",
+    "command_age_warn",
+    "command_interval_warn",
     "attitude_thrust",
     "actuator_ratio",
     "actuator_saturated",
@@ -66,6 +100,7 @@ MAIN_CSV_HEADERS = [
     "planner_touch_goal",
     "planner_trigger_reason",
     "planner_failure_reason",
+    "planner_failure_detail",
     "planner_astar_expanded_nodes",
     "planner_gradient_norm_final",
     "planner_cost_initial",
@@ -95,6 +130,7 @@ REPLAN_CSV_HEADERS = [
     "local_target_distance",
     "trigger_reason",
     "failure_reason",
+    "failure_detail",
     "a_star_expanded_nodes",
     "gradient_norm_final",
     "cost_initial",
@@ -188,6 +224,8 @@ class DroneSessionState:
     event_csv_path: str = ""
     last_cmd_acc: Optional[Tuple[float, float, float]] = None
     last_cmd_acc_stamp: Optional[float] = None
+    last_cmd_callback_wall_sec: Optional[float] = None
+    last_cmd_interval_ms: Optional[float] = None
     command_stamp: Optional[float] = None
     replan_stamp: Optional[float] = None
     event_stamp: Optional[float] = None
@@ -199,6 +237,8 @@ class DroneSessionState:
     tracking_error_samples: List[float] = field(default_factory=list)
     speed_samples: List[float] = field(default_factory=list)
     control_lag_samples: List[float] = field(default_factory=list)
+    command_age_samples: List[float] = field(default_factory=list)
+    command_interval_samples: List[float] = field(default_factory=list)
     safety_margin_samples: List[float] = field(default_factory=list)
     actuator_ratio_samples: List[float] = field(default_factory=list)
     planner_latency_samples: List[float] = field(default_factory=list)
@@ -207,6 +247,8 @@ class DroneSessionState:
     replan_success_count: int = 0
     replan_total_count: int = 0
     safety_violation_count: int = 0
+    command_age_warn_sample_count: int = 0
+    command_interval_warn_count: int = 0
     actuator_saturation_hits: int = 0
     actuator_saturation_samples: int = 0
     jerk_integral: float = 0.0
@@ -216,19 +258,32 @@ class DroneSessionState:
     min_safety_margin_m: float = float("inf")
     max_speed_mps: float = 0.0
     max_actuator_ratio: float = 0.0
+    max_command_age_ms: float = 0.0
+    max_command_interval_ms: float = 0.0
+    recovered_emergency_stop_count: int = 0
+    interaction_recovery_count: int = 0
+    replan_trigger_reason_counts: Dict[str, int] = field(default_factory=dict)
+    replan_failure_reason_counts: Dict[str, int] = field(default_factory=dict)
+    replan_failure_detail_counts: Dict[str, int] = field(default_factory=dict)
 
 
 class BenchmarkManager:
     def __init__(self):
-        self.output_dir = os.path.expanduser(rospy.get_param("~output_dir", "~/swarm_benchmark/data"))
+        self.output_dir = _resolve_workspace_path(rospy.get_param("~output_dir", "~/swarm_benchmark/data"))
         self.planner_node_name = rospy.get_param("~planner_node_name", "ego_planner")
         self.drone_count = int(rospy.get_param("~drone_count", 1))
         self.default_vmax = float(rospy.get_param("~default_vmax", 10.0))
         self.default_record_rosbag = bool(rospy.get_param("~record_rosbag", True))
+        self.coverage_stop_on_target_detected = bool(rospy.get_param("~coverage_stop_on_target_detected", True))
+        self.goal_stop_enabled = bool(rospy.get_param("~goal_stop_enabled", True))
         self.default_low_speed_threshold = float(rospy.get_param("~low_speed_threshold", 0.1))
         self.default_low_speed_duration = float(rospy.get_param("~low_speed_duration", 2.0))
         self.default_goal_distance_threshold = float(rospy.get_param("~goal_distance_threshold", 0.5))
+        self.default_command_age_warn_ms = float(rospy.get_param("~command_age_warn_ms", 150.0))
+        self.default_command_interval_warn_ms = float(rospy.get_param("~command_interval_warn_ms", 150.0))
         self.stop_after_terminal_sec = float(rospy.get_param("~stop_after_terminal_sec", 2.0))
+        self.min_session_duration_sec = float(rospy.get_param("~min_session_duration_sec", 0.0))
+        self.max_session_duration_sec = float(rospy.get_param("~max_session_duration_sec", 0.0))
         self.point_stride = max(1, int(rospy.get_param("~point_stride", 10)))
         self.model_radius = float(rospy.get_param("~model_radius", 0.35))
         self.safety_margin_threshold = float(rospy.get_param("~safety_margin_threshold", 0.5))
@@ -273,12 +328,33 @@ class BenchmarkManager:
         self._session_low_speed_threshold = self.default_low_speed_threshold
         self._session_low_speed_duration = self.default_low_speed_duration
         self._session_goal_distance_threshold = self.default_goal_distance_threshold
+        self._session_command_age_warn_ms = self.default_command_age_warn_ms
+        self._session_command_interval_warn_ms = self.default_command_interval_warn_ms
         self._session_record_rosbag = self.default_record_rosbag
         self._session_rosbag_topics_request: List[str] = []
         self._auto_session_started = False
+        self._cpu_process_cache: Dict[int, object] = {}
+        self._planner_cpu_samples: List[float] = []
+        self._system_cpu_samples: List[float] = []
+        self._system_cpu_freq_current_samples: List[float] = []
+        self._system_cpu_freq_peak_core_samples: List[float] = []
+        self._planner_cpu_process_count_samples: List[float] = []
+        self._coverage_engine = None
+        if CoverageMemoryEngine is not None:
+            self._coverage_engine = CoverageMemoryEngine(
+                map_size_m=float(rospy.get_param("~coverage_map_size_m", 80.0)),
+                grid_resolution_m=float(rospy.get_param("~coverage_grid_resolution", 1.0)),
+                fov_deg=float(rospy.get_param("~coverage_fov_deg", 80.0)),
+                target_distance_threshold_m=float(rospy.get_param("~target_distance_threshold", 2.0)),
+                coverage_publish_hz=float(rospy.get_param("~coverage_publish_hz", 2.0)),
+                projection_range_scale=float(rospy.get_param("~coverage_projection_range_scale", 2.0)),
+                min_projection_range_m=float(rospy.get_param("~coverage_min_projection_range_m", 2.0)),
+                stop_on_target_detected=self.coverage_stop_on_target_detected,
+            )
 
         self._setup_subscribers()
         self._service = rospy.Service("start_session", BenchmarkStartSession, self._handle_start_session)
+        self._stop_service = rospy.Service("stop_session", Trigger, self._handle_stop_session)
         self._monitor_timer = rospy.Timer(rospy.Duration(0.05), self._monitor_session)
 
         rospy.loginfo(
@@ -315,6 +391,132 @@ class BenchmarkManager:
         return time.time()
 
     @staticmethod
+    def _cpu_target_process_names() -> set:
+        return {"ego_planner_node_v2", "traj_server_v2"}
+
+    @staticmethod
+    def _process_matches_target(proc, target_names: set) -> bool:
+        name = ""
+        cmdline_head = ""
+        try:
+            name = proc.info.get("name") or ""
+        except Exception:
+            pass
+        try:
+            cmdline = proc.info.get("cmdline") or []
+            if isinstance(cmdline, (list, tuple)):
+                cmdline_head = os.path.basename(str(cmdline[0])) if cmdline else ""
+            else:
+                cmdline_head = os.path.basename(str(cmdline))
+        except Exception:
+            pass
+        if name in target_names:
+            return True
+        return cmdline_head in target_names
+
+    def _prime_cpu_monitor(self):
+        if psutil is None:
+            return
+        try:
+            psutil.cpu_percent(interval=None)
+        except Exception:
+            pass
+        target_names = self._cpu_target_process_names()
+        try:
+            for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+                if not self._process_matches_target(proc, target_names):
+                    continue
+                self._cpu_process_cache[proc.pid] = proc
+                try:
+                    proc.cpu_percent(interval=None)
+                except Exception:
+                    self._cpu_process_cache.pop(proc.pid, None)
+        except Exception:
+            pass
+
+    def _sample_cpu_usage(self):
+        if psutil is None or not self._session_active:
+            return
+
+        try:
+            system_cpu = float(psutil.cpu_percent(interval=None))
+        except Exception:
+            system_cpu = float("nan")
+
+        target_names = self._cpu_target_process_names()
+        planner_cpu = 0.0
+        planner_process_count = 0
+        seen_pids = set()
+        try:
+            for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+                if not self._process_matches_target(proc, target_names):
+                    continue
+                seen_pids.add(proc.pid)
+                cached_proc = self._cpu_process_cache.get(proc.pid)
+                if cached_proc is None:
+                    self._cpu_process_cache[proc.pid] = proc
+                    try:
+                        proc.cpu_percent(interval=None)
+                    except Exception:
+                        self._cpu_process_cache.pop(proc.pid, None)
+                    continue
+                try:
+                    cpu_value = float(cached_proc.cpu_percent(interval=None))
+                except Exception:
+                    self._cpu_process_cache.pop(proc.pid, None)
+                    continue
+                if math.isfinite(cpu_value):
+                    planner_cpu += cpu_value
+                    planner_process_count += 1
+        except Exception:
+            return
+
+        stale_pids = [pid for pid in self._cpu_process_cache.keys() if pid not in seen_pids]
+        for pid in stale_pids:
+            self._cpu_process_cache.pop(pid, None)
+
+        if math.isfinite(system_cpu):
+            self._system_cpu_samples.append(system_cpu)
+        self._planner_cpu_samples.append(planner_cpu)
+        self._planner_cpu_process_count_samples.append(float(planner_process_count))
+
+        freq_current = float("nan")
+        freq_peak_core = float("nan")
+        try:
+            freq_info = psutil.cpu_freq(percpu=True)
+        except Exception:
+            freq_info = None
+        if freq_info:
+            current_values = []
+            peak_values = []
+            for item in freq_info:
+                current_value = getattr(item, "current", None)
+                max_value = getattr(item, "max", None)
+                if current_value is not None:
+                    try:
+                        current_float = float(current_value)
+                    except Exception:
+                        current_float = float("nan")
+                    if math.isfinite(current_float):
+                        current_values.append(current_float)
+                if max_value is not None:
+                    try:
+                        max_float = float(max_value)
+                    except Exception:
+                        max_float = float("nan")
+                    if math.isfinite(max_float):
+                        peak_values.append(max_float)
+            freq_current = _mean(current_values)
+            freq_peak_core = max(current_values, default=float("nan"))
+            if peak_values:
+                freq_peak_core = max(freq_peak_core, max(peak_values))
+
+        if math.isfinite(freq_current):
+            self._system_cpu_freq_current_samples.append(freq_current)
+        if math.isfinite(freq_peak_core):
+            self._system_cpu_freq_peak_core_samples.append(freq_peak_core)
+
+    @staticmethod
     def _ros_stamp_to_sec(msg) -> float:
         try:
             stamp = msg.header.stamp
@@ -339,6 +541,39 @@ class BenchmarkManager:
             return template % drone_id
         except Exception:
             return str(template).format(drone_id=drone_id)
+
+    @staticmethod
+    def _planner_state_is_active(state_code: int) -> bool:
+        return state_code in (
+            PlannerBenchmarkEvent.STATE_GEN_NEW_TRAJ,
+            PlannerBenchmarkEvent.STATE_REPLAN_TRAJ,
+            PlannerBenchmarkEvent.STATE_EXEC_TRAJ,
+        )
+
+    @staticmethod
+    def _replan_trigger_reason_name(value: int) -> str:
+        mapping = {
+            PlannerReplanInfo.TRIGGER_UNKNOWN: "unknown",
+            PlannerReplanInfo.TRIGGER_TARGET: "target",
+            PlannerReplanInfo.TRIGGER_COLLISION: "collision",
+            PlannerReplanInfo.TRIGGER_TIME: "time",
+            PlannerReplanInfo.TRIGGER_MANUAL: "manual",
+        }
+        return mapping.get(int(value), f"unknown_{int(value)}")
+
+    @staticmethod
+    def _replan_failure_reason_name(value: int) -> str:
+        mapping = {
+            PlannerReplanInfo.FAILURE_NONE: "none",
+            PlannerReplanInfo.FAILURE_CLOSE_TO_GOAL: "close_to_goal",
+            PlannerReplanInfo.FAILURE_INIT_FAILED: "init_failed",
+            PlannerReplanInfo.FAILURE_OPTIMIZER_FAILED: "optimizer_failed",
+            PlannerReplanInfo.FAILURE_COLLISION: "collision",
+            PlannerReplanInfo.FAILURE_TIMEOUT: "timeout",
+            PlannerReplanInfo.FAILURE_EMERGENCY_STOP: "emergency_stop",
+            PlannerReplanInfo.FAILURE_UNKNOWN: "unknown",
+        }
+        return mapping.get(int(value), f"unknown_{int(value)}")
 
     def _ensure_state(self, drone_id: int) -> DroneSessionState:
         state = self._states.get(drone_id)
@@ -438,6 +673,8 @@ class BenchmarkManager:
         state.terminal_deadline = None
         state.last_cmd_acc = None
         state.last_cmd_acc_stamp = None
+        state.last_cmd_callback_wall_sec = None
+        state.last_cmd_interval_ms = None
         state.command_stamp = None
         state.replan_stamp = None
         state.event_stamp = None
@@ -449,6 +686,8 @@ class BenchmarkManager:
         state.tracking_error_samples.clear()
         state.speed_samples.clear()
         state.control_lag_samples.clear()
+        state.command_age_samples.clear()
+        state.command_interval_samples.clear()
         state.safety_margin_samples.clear()
         state.actuator_ratio_samples.clear()
         state.planner_latency_samples.clear()
@@ -457,6 +696,8 @@ class BenchmarkManager:
         state.replan_success_count = 0
         state.replan_total_count = 0
         state.safety_violation_count = 0
+        state.command_age_warn_sample_count = 0
+        state.command_interval_warn_count = 0
         state.actuator_saturation_hits = 0
         state.actuator_saturation_samples = 0
         state.jerk_integral = 0.0
@@ -466,10 +707,15 @@ class BenchmarkManager:
         state.min_safety_margin_m = float("inf")
         state.max_speed_mps = 0.0
         state.max_actuator_ratio = 0.0
+        state.max_command_age_ms = 0.0
+        state.max_command_interval_ms = 0.0
         state.bag_topics = []
         state.bag_path = ""
         state.bag_started_wall_sec = None
         state.bag_stopped_wall_sec = None
+        state.replan_trigger_reason_counts.clear()
+        state.replan_failure_reason_counts.clear()
+        state.replan_failure_detail_counts.clear()
 
     def _resolve_active_drone_ids(self, request_ids: Sequence[int]) -> List[int]:
         return [int(item) for item in request_ids] if request_ids else list(self.default_drone_ids)
@@ -616,6 +862,8 @@ class BenchmarkManager:
             "low_speed_threshold": self._session_low_speed_threshold,
             "low_speed_duration": self._session_low_speed_duration,
             "goal_distance_threshold": self._session_goal_distance_threshold,
+            "command_age_warn_ms": self._session_command_age_warn_ms,
+            "command_interval_warn_ms": self._session_command_interval_warn_ms,
             "record_rosbag": self._session_record_rosbag,
             "rosbag_topics_request": list(self._session_rosbag_topics_request),
         }
@@ -632,6 +880,19 @@ class BenchmarkManager:
         response.session_id = session_id or ""
         response.message = message
         return response
+
+    def _handle_stop_session(self, _request):
+        with self._lock:
+            response = TriggerResponse()
+            if not self._session_active:
+                response.success = False
+                response.message = "no active benchmark session"
+                return response
+
+            self._stop_session_locked("external_stop_request")
+            response.success = True
+            response.message = "benchmark session stopped"
+            return response
 
     def _start_session_locked(self, request=None, source: str = "manual"):
         if self._session_active:
@@ -658,7 +919,7 @@ class BenchmarkManager:
         self._session_started_wall_sec = self._now_wall()
         self._session_started_ros_sec = rospy.Time.now().to_sec()
         base_output_dir = request.output_dir.strip() if request is not None else ""
-        base_output_dir = os.path.expanduser(base_output_dir or self.output_dir)
+        base_output_dir = _resolve_workspace_path(base_output_dir or self.output_dir)
         self._session_output_dir = os.path.join(base_output_dir, self._session_id)
         os.makedirs(self._session_output_dir, exist_ok=True)
         self._session_drone_ids = list(drone_ids)
@@ -671,6 +932,8 @@ class BenchmarkManager:
         self._session_low_speed_threshold = requested_low_speed if requested_low_speed > 0.0 else self.default_low_speed_threshold
         self._session_low_speed_duration = requested_low_speed_duration if requested_low_speed_duration > 0.0 else self.default_low_speed_duration
         self._session_goal_distance_threshold = requested_goal_distance if requested_goal_distance > 0.0 else self.default_goal_distance_threshold
+        self._session_command_age_warn_ms = self.default_command_age_warn_ms
+        self._session_command_interval_warn_ms = self.default_command_interval_warn_ms
         if request is not None and request.rosbag_topics:
             self._session_rosbag_topics_request = list(request.rosbag_topics)
         else:
@@ -680,6 +943,14 @@ class BenchmarkManager:
         else:
             self._session_record_rosbag = request.record_rosbag or (not request.rosbag_topics and self.default_record_rosbag)
 
+        self._cpu_process_cache.clear()
+        self._planner_cpu_samples.clear()
+        self._system_cpu_samples.clear()
+        self._system_cpu_freq_current_samples.clear()
+        self._system_cpu_freq_peak_core_samples.clear()
+        self._planner_cpu_process_count_samples.clear()
+        self._prime_cpu_monitor()
+
         for drone_id in self._session_drone_ids:
             state = self._ensure_state(drone_id)
             self._close_writers(state)
@@ -687,6 +958,27 @@ class BenchmarkManager:
             self._reset_state_for_session(state, goals.get(drone_id))
             self._open_writers(state)
             self._start_rosbag_for_drone(state)
+
+        if self._coverage_engine is not None:
+            target_positions = rospy.get_param("~target_positions", None)
+            if not target_positions:
+                found_param = rospy.search_param("target_positions")
+                if found_param:
+                    try:
+                        target_positions = rospy.get_param(found_param, [])
+                    except Exception:
+                        target_positions = []
+            if target_positions is None:
+                target_positions = []
+            self._coverage_engine.start_session(
+                session_id=self._session_id,
+                output_dir=self._session_output_dir,
+                drone_ids=self._session_drone_ids,
+                goals=goals,
+                target_positions=target_positions,
+                session_start_ros_sec=self._session_started_ros_sec,
+                session_start_wall_sec=self._session_started_wall_sec,
+            )
 
         self._session_active = True
         if source == "auto":
@@ -718,6 +1010,32 @@ class BenchmarkManager:
         if state.terminal_reason is None or reason == "emergency_stop":
             state.terminal_reason = reason
             state.terminal_deadline = now_sec + self.stop_after_terminal_sec
+
+    def _clear_terminal_on_recovery(self, state: DroneSessionState, msg: PlannerBenchmarkEvent):
+        if state.terminal_reason != "emergency_stop":
+            return
+        if msg.previous_state != PlannerBenchmarkEvent.STATE_EMERGENCY_STOP:
+            return
+        if not self._planner_state_is_active(msg.current_state):
+            return
+
+        state.recovered_emergency_stop_count += 1
+        neighbor_distance = state.latest_neighbor_distance_m
+        safety_margin = state.min_safety_margin_m if math.isfinite(state.min_safety_margin_m) else float("nan")
+        interaction_threshold = max(2.0 * self.safety_margin_threshold, 0.8)
+        if (
+            neighbor_distance is not None and math.isfinite(neighbor_distance) and neighbor_distance <= interaction_threshold
+        ) or (math.isfinite(safety_margin) and safety_margin <= interaction_threshold):
+            state.interaction_recovery_count += 1
+
+        rospy.loginfo(
+            "[clean_uav_core] benchmark_manager recovered drone_%d from transient emergency_stop -> state %d",
+            state.drone_id,
+            int(msg.current_state),
+        )
+        state.terminal_reason = None
+        state.terminal_deadline = None
+        state.low_speed_since = None
 
     def _update_neighbor_distance_from_model_states(self, state: DroneSessionState) -> Optional[float]:
         if state.latest_odom is None or state.latest_model_states is None:
@@ -770,11 +1088,14 @@ class BenchmarkManager:
             state = self._ensure_state(drone_id)
             state.latest_event = msg
             state.event_stamp = self._ros_stamp_to_sec(msg)
+            if self._coverage_engine is not None:
+                self._coverage_engine.update_event(drone_id, msg)
             self._auto_start_if_needed(msg)
             if not self._session_active or drone_id not in self._session_drone_ids:
                 return
+            self._clear_terminal_on_recovery(state, msg)
             self._write_event_row(state, msg)
-            if msg.event_type == PlannerBenchmarkEvent.EVENT_GOAL_REACHED:
+            if self.goal_stop_enabled and msg.event_type == PlannerBenchmarkEvent.EVENT_GOAL_REACHED:
                 self._arm_terminal(state, "goal_reached")
             elif msg.current_state == PlannerBenchmarkEvent.STATE_EMERGENCY_STOP:
                 self._arm_terminal(state, "emergency_stop")
@@ -784,11 +1105,21 @@ class BenchmarkManager:
             state = self._ensure_state(drone_id)
             state.latest_replan = msg
             state.replan_stamp = self._ros_stamp_to_sec(msg)
+            if self._coverage_engine is not None:
+                self._coverage_engine.update_replan(drone_id, msg)
             if not self._session_active or drone_id not in self._session_drone_ids:
                 return
             state.replan_total_count += 1
             if msg.success:
                 state.replan_success_count += 1
+            trigger_reason_name = self._replan_trigger_reason_name(msg.trigger_reason)
+            failure_reason_name = self._replan_failure_reason_name(msg.failure_reason)
+            failure_detail_name = str(getattr(msg, "failure_detail", "") or "").strip()
+            state.replan_trigger_reason_counts[trigger_reason_name] = state.replan_trigger_reason_counts.get(trigger_reason_name, 0) + 1
+            state.replan_failure_reason_counts[failure_reason_name] = state.replan_failure_reason_counts.get(failure_reason_name, 0) + 1
+            if failure_reason_name != "none":
+                detail_key = failure_detail_name if failure_detail_name else failure_reason_name
+                state.replan_failure_detail_counts[detail_key] = state.replan_failure_detail_counts.get(detail_key, 0) + 1
             state.planner_latency_samples.append(float(msg.time_total_ms))
             state.planner_interval_samples.append(float(msg.replan_interval_ms))
             state.planner_iter_samples.append(float(msg.iter_count))
@@ -800,10 +1131,19 @@ class BenchmarkManager:
             state.latest_odom = msg
             state.odom_stamp = self._ros_stamp_to_sec(msg)
             self._update_neighbor_distance_from_model_states(state)
+            if self._coverage_engine is not None:
+                self._coverage_engine.update_odom(drone_id, msg)
 
     def _cmd_callback(self, drone_id: int, msg: PositionCommand):
         with self._lock:
             state = self._ensure_state(drone_id)
+            callback_wall_sec = self._now_wall()
+            if state.last_cmd_callback_wall_sec is not None:
+                state.last_cmd_interval_ms = max(0.0, (callback_wall_sec - state.last_cmd_callback_wall_sec) * 1000.0)
+                state.max_command_interval_ms = max(state.max_command_interval_ms, state.last_cmd_interval_ms)
+                if state.last_cmd_interval_ms > self._session_command_interval_warn_ms:
+                    state.command_interval_warn_count += 1
+            state.last_cmd_callback_wall_sec = callback_wall_sec
             state.latest_cmd = msg
             state.command_stamp = self._ros_stamp_to_sec(msg)
             if state.last_cmd_acc is None:
@@ -915,6 +1255,17 @@ class BenchmarkManager:
             return float("nan")
         return abs(state.odom_stamp - state.command_stamp) * 1000.0
 
+    def _command_age_ms(self, state: DroneSessionState) -> float:
+        if state.last_cmd_callback_wall_sec is None:
+            return float("nan")
+        return max(0.0, (self._now_wall() - state.last_cmd_callback_wall_sec) * 1000.0)
+
+    @staticmethod
+    def _command_interval_ms(state: DroneSessionState) -> float:
+        if state.last_cmd_interval_ms is None:
+            return float("nan")
+        return float(state.last_cmd_interval_ms)
+
     def _write_replan_row(self, state: DroneSessionState, msg: PlannerReplanInfo):
         if state.replan_csv_writer is None:
             return
@@ -936,6 +1287,7 @@ class BenchmarkManager:
             "local_target_distance": self._format_float(float(msg.local_target_distance)),
             "trigger_reason": int(msg.trigger_reason),
             "failure_reason": int(msg.failure_reason),
+            "failure_detail": str(getattr(msg, "failure_detail", "") or ""),
             "a_star_expanded_nodes": int(msg.a_star_expanded_nodes),
             "gradient_norm_final": self._format_float(float(msg.gradient_norm_final)),
             "cost_initial": self._format_float(float(msg.cost_initial)),
@@ -979,6 +1331,10 @@ class BenchmarkManager:
         jerk_norm = self._compute_jerk_norm(state)
         safety_margin = self._safety_margin(state)
         control_lag_ms = self._control_lag_ms(state)
+        command_age_ms = self._command_age_ms(state)
+        command_interval_ms = self._command_interval_ms(state)
+        command_age_warn = int(math.isfinite(command_age_ms) and command_age_ms > self._session_command_age_warn_ms)
+        command_interval_warn = int(math.isfinite(command_interval_ms) and command_interval_ms > self._session_command_interval_warn_ms)
         actuator_ratio = self._actuator_ratio(state)
         actuator_saturated = int(math.isfinite(actuator_ratio) and actuator_ratio >= self.actuator_saturation_threshold)
         velocity_efficiency = speed / self._session_vmax if self._session_vmax > 1e-6 and math.isfinite(speed) else float("nan")
@@ -1028,6 +1384,10 @@ class BenchmarkManager:
             "safety_margin_m": self._format_float(safety_margin),
             "safety_violation": int(math.isfinite(safety_margin) and safety_margin < self.safety_margin_threshold),
             "control_lag_ms": self._format_float(control_lag_ms),
+            "command_age_ms": self._format_float(command_age_ms),
+            "command_interval_ms": self._format_float(command_interval_ms),
+            "command_age_warn": command_age_warn,
+            "command_interval_warn": command_interval_warn,
             "attitude_thrust": self._format_float(actuator_ratio),
             "actuator_ratio": self._format_float(actuator_ratio),
             "actuator_saturated": actuator_saturated,
@@ -1038,6 +1398,7 @@ class BenchmarkManager:
             "planner_touch_goal": int(bool(replan.touch_goal)) if replan is not None else "",
             "planner_trigger_reason": int(replan.trigger_reason) if replan is not None else "",
             "planner_failure_reason": int(replan.failure_reason) if replan is not None else "",
+            "planner_failure_detail": str(getattr(replan, "failure_detail", "") or "") if replan is not None else "",
             "planner_astar_expanded_nodes": int(replan.a_star_expanded_nodes) if replan is not None else "",
             "planner_gradient_norm_final": self._format_float(float(replan.gradient_norm_final) if replan is not None else float("nan")),
             "planner_cost_initial": self._format_float(float(replan.cost_initial) if replan is not None else float("nan")),
@@ -1057,8 +1418,19 @@ class BenchmarkManager:
         if math.isfinite(speed):
             state.speed_samples.append(speed)
             state.max_speed_mps = max(state.max_speed_mps, speed)
-        if math.isfinite(control_lag_ms):
+        # Only record control_lag when commands are actively flowing (not in post-goal or replan gaps).
+        # When command_age_ms > threshold the command is stale: the lag will artificially grow
+        # each sample period and contaminate P95. Gate: command must be "fresh" (recently arrived).
+        _cmd_is_fresh = math.isfinite(command_age_ms) and command_age_ms <= self._session_command_age_warn_ms
+        if math.isfinite(control_lag_ms) and _cmd_is_fresh:
             state.control_lag_samples.append(control_lag_ms)
+        if math.isfinite(command_age_ms):
+            state.command_age_samples.append(command_age_ms)
+            state.max_command_age_ms = max(state.max_command_age_ms, command_age_ms)
+            if command_age_warn:
+                state.command_age_warn_sample_count += 1
+        if math.isfinite(command_interval_ms):
+            state.command_interval_samples.append(command_interval_ms)
         if math.isfinite(safety_margin):
             state.safety_margin_samples.append(safety_margin)
             state.min_safety_margin_m = min(state.min_safety_margin_m, safety_margin)
@@ -1077,6 +1449,8 @@ class BenchmarkManager:
             state.last_row_ros_time = self._ros_stamp_to_sec(odom)
 
     def _check_low_speed_goal_condition(self, state: DroneSessionState):
+        if not self.goal_stop_enabled:
+            return
         if state.latest_odom is None or state.goal is None or state.terminal_reason is not None:
             return
         speed = self._speed(state)
@@ -1093,6 +1467,8 @@ class BenchmarkManager:
     def _failure_prediction(self, state: DroneSessionState) -> str:
         tracking_error_p95 = _p95(state.tracking_error_samples)
         control_lag_p95 = _p95(state.control_lag_samples)
+        command_age_p95 = _p95(state.command_age_samples)
+        command_interval_p95 = _p95(state.command_interval_samples)
         planner_latency_p95 = _p95(state.planner_latency_samples)
         actuator_ratio_mean = _mean(state.actuator_ratio_samples)
         stress_score = self._computational_stress_score(state)
@@ -1100,6 +1476,8 @@ class BenchmarkManager:
         predictions = []
         if (math.isfinite(tracking_error_p95) and tracking_error_p95 > max(1.0, 0.15 * self._session_vmax)) or (math.isfinite(control_lag_p95) and control_lag_p95 > 200.0):
             predictions.append("定位漂移")
+        if (math.isfinite(command_age_p95) and command_age_p95 > self._session_command_age_warn_ms) or (math.isfinite(command_interval_p95) and command_interval_p95 > self._session_command_interval_warn_ms):
+            predictions.append("指令断续")
         if (math.isfinite(planner_latency_p95) and planner_latency_p95 > 50.0) or stress_score > 0.75:
             predictions.append("计算超时")
         if (math.isfinite(actuator_ratio_mean) and actuator_ratio_mean > 0.7) or state.max_actuator_ratio >= self.actuator_saturation_threshold or state.max_speed_mps > 1.15 * self._session_vmax:
@@ -1125,6 +1503,81 @@ class BenchmarkManager:
         summary = self._build_manifest()
         summary["stop_reason"] = reason
         summary["stopped_wall_time_sec"] = self._now_wall()
+        summary["min_session_duration_sec"] = self.min_session_duration_sec
+        summary["max_session_duration_sec"] = self.max_session_duration_sec
+        logical_cpu_count = psutil.cpu_count(logical=True) if psutil is not None else os.cpu_count()
+        physical_cpu_count = psutil.cpu_count(logical=False) if psutil is not None else None
+        planner_cpu_mean = _mean(self._planner_cpu_samples)
+        planner_cpu_p95 = _p95(self._planner_cpu_samples)
+        planner_cpu_peak = max([value for value in self._planner_cpu_samples if math.isfinite(value)], default=float("nan"))
+        system_cpu_mean = _mean(self._system_cpu_samples)
+        system_cpu_p95 = _p95(self._system_cpu_samples)
+        system_cpu_peak = max([value for value in self._system_cpu_samples if math.isfinite(value)], default=float("nan"))
+        planner_process_count_mean = _mean(self._planner_cpu_process_count_samples)
+        planner_process_count_peak = max(
+            [value for value in self._planner_cpu_process_count_samples if math.isfinite(value)],
+            default=float("nan"),
+        )
+        cpu_freq_current_mean = _mean(self._system_cpu_freq_current_samples)
+        cpu_freq_current_p95 = _p95(self._system_cpu_freq_current_samples)
+        cpu_freq_current_peak = max(
+            [value for value in self._system_cpu_freq_current_samples if math.isfinite(value)],
+            default=float("nan"),
+        )
+        cpu_freq_peak_core_mean = _mean(self._system_cpu_freq_peak_core_samples)
+        cpu_freq_peak_core_p95 = _p95(self._system_cpu_freq_peak_core_samples)
+        cpu_freq_peak_core_peak = max(
+            [value for value in self._system_cpu_freq_peak_core_samples if math.isfinite(value)],
+            default=float("nan"),
+        )
+        reported_cpu_freq = None
+        try:
+            reported_cpu_freq = psutil.cpu_freq(percpu=False) if psutil is not None else None
+        except Exception:
+            reported_cpu_freq = None
+        reported_cpu_freq_max = (
+            float(getattr(reported_cpu_freq, "max", float("nan")))
+            if reported_cpu_freq is not None
+            else float("nan")
+        )
+        summary["cpu_metrics"] = {
+            "host_cpu_logical_count": logical_cpu_count,
+            "host_cpu_physical_count": physical_cpu_count,
+            "sample_count": len(self._planner_cpu_samples),
+            "planner_stack_cpu_percent_mean": planner_cpu_mean,
+            "planner_stack_cpu_percent_p95": planner_cpu_p95,
+            "planner_stack_cpu_percent_peak": planner_cpu_peak,
+            "planner_stack_cpu_cores_mean": planner_cpu_mean / 100.0 if math.isfinite(planner_cpu_mean) else float("nan"),
+            "planner_stack_cpu_cores_p95": planner_cpu_p95 / 100.0 if math.isfinite(planner_cpu_p95) else float("nan"),
+            "planner_stack_cpu_cores_peak": planner_cpu_peak / 100.0 if math.isfinite(planner_cpu_peak) else float("nan"),
+            "planner_stack_host_share_mean_pct": (
+                planner_cpu_mean / float(logical_cpu_count)
+                if math.isfinite(planner_cpu_mean) and logical_cpu_count
+                else float("nan")
+            ),
+            "planner_stack_host_share_p95_pct": (
+                planner_cpu_p95 / float(logical_cpu_count)
+                if math.isfinite(planner_cpu_p95) and logical_cpu_count
+                else float("nan")
+            ),
+            "planner_stack_host_share_peak_pct": (
+                planner_cpu_peak / float(logical_cpu_count)
+                if math.isfinite(planner_cpu_peak) and logical_cpu_count
+                else float("nan")
+            ),
+            "system_cpu_percent_mean": system_cpu_mean,
+            "system_cpu_percent_p95": system_cpu_p95,
+            "system_cpu_percent_peak": system_cpu_peak,
+            "system_cpu_freq_current_mean_mhz": cpu_freq_current_mean,
+            "system_cpu_freq_current_p95_mhz": cpu_freq_current_p95,
+            "system_cpu_freq_current_peak_mhz": cpu_freq_current_peak,
+            "system_cpu_freq_peak_core_mean_mhz": cpu_freq_peak_core_mean,
+            "system_cpu_freq_peak_core_p95_mhz": cpu_freq_peak_core_p95,
+            "system_cpu_freq_peak_core_peak_mhz": cpu_freq_peak_core_peak,
+            "system_cpu_freq_reported_max_mhz": reported_cpu_freq_max,
+            "planner_stack_process_count_mean": planner_process_count_mean,
+            "planner_stack_process_count_peak": planner_process_count_peak,
+        }
         summary["drone_metrics"] = {}
         for drone_id in self._session_drone_ids:
             state = self._states[drone_id]
@@ -1144,6 +1597,16 @@ class BenchmarkManager:
                 "speed_max": state.max_speed_mps,
                 "control_lag_mean_ms": _mean(state.control_lag_samples),
                 "control_lag_p95_ms": _p95(state.control_lag_samples),
+                "command_age_warn_ms": self._session_command_age_warn_ms,
+                "command_age_mean_ms": _mean(state.command_age_samples),
+                "command_age_p95_ms": _p95(state.command_age_samples),
+                "command_age_max_ms": state.max_command_age_ms,
+                "command_age_warn_sample_count": state.command_age_warn_sample_count,
+                "command_interval_warn_ms": self._session_command_interval_warn_ms,
+                "command_interval_mean_ms": _mean(state.command_interval_samples),
+                "command_interval_p95_ms": _p95(state.command_interval_samples),
+                "command_interval_max_ms": state.max_command_interval_ms,
+                "command_interval_warn_count": state.command_interval_warn_count,
                 "planner_latency_mean_ms": _mean(state.planner_latency_samples),
                 "planner_latency_p95_ms": _p95(state.planner_latency_samples),
                 "planner_replan_interval_mean_ms": _mean(state.planner_interval_samples),
@@ -1154,12 +1617,17 @@ class BenchmarkManager:
                     if state.replan_total_count > 0
                     else float("nan")
                 ),
+                "replan_trigger_reason_counts": state.replan_trigger_reason_counts,
+                "replan_failure_reason_counts": state.replan_failure_reason_counts,
+                "replan_failure_detail_counts": state.replan_failure_detail_counts,
                 "computational_stress_score": self._computational_stress_score(state),
                 "jerk_integral": state.jerk_integral,
                 "min_obstacle_clearance_m": state.min_obstacle_clearance_m if state.min_obstacle_clearance_m < float("inf") else float("nan"),
                 "min_neighbor_distance_m": state.min_neighbor_distance_m if state.min_neighbor_distance_m < float("inf") else float("nan"),
                 "min_safety_margin_m": state.min_safety_margin_m if state.min_safety_margin_m < float("inf") else float("nan"),
                 "safety_violation_count": state.safety_violation_count,
+                "recovered_emergency_stop_count": state.recovered_emergency_stop_count,
+                "interaction_recovery_count": state.interaction_recovery_count,
                 "actuator_saturation_ratio": (
                     float(state.actuator_saturation_hits) / float(state.actuator_saturation_samples)
                     if state.actuator_saturation_samples > 0
@@ -1178,6 +1646,8 @@ class BenchmarkManager:
             state = self._states[drone_id]
             self._stop_rosbag_for_drone(state)
             self._close_writers(state)
+        if self._coverage_engine is not None:
+            self._coverage_engine.finalize_session(reason)
         summary = self._build_summary(reason)
         with open(self._session_summary_path(), "w", encoding="utf-8") as handle:
             json.dump(summary, handle, indent=2, ensure_ascii=False)
@@ -1190,6 +1660,9 @@ class BenchmarkManager:
                 return
 
             now_sec = self._now_wall()
+            session_elapsed_sec = 0.0
+            if self._session_started_wall_sec is not None:
+                session_elapsed_sec = max(0.0, now_sec - self._session_started_wall_sec)
             emergency_due = False
             all_terminal = True
             for drone_id in self._session_drone_ids:
@@ -1204,9 +1677,21 @@ class BenchmarkManager:
                 if state.terminal_reason is None or state.terminal_deadline is None or now_sec < state.terminal_deadline:
                     all_terminal = False
 
-            if emergency_due:
+            self._sample_cpu_usage()
+
+            if (
+                self._coverage_engine is not None
+                and self._coverage_engine.stop_requested()
+                and session_elapsed_sec >= self.min_session_duration_sec
+            ):
+                self._stop_session_locked(self._coverage_engine.stop_reason() or "target_detected")
+                return
+
+            if self.max_session_duration_sec > 0.0 and session_elapsed_sec >= self.max_session_duration_sec:
+                self._stop_session_locked("max_session_duration")
+            elif emergency_due and session_elapsed_sec >= self.min_session_duration_sec:
                 self._stop_session_locked("emergency_stop")
-            elif all_terminal:
+            elif all_terminal and session_elapsed_sec >= self.min_session_duration_sec:
                 self._stop_session_locked("all_goals_reached")
 
     def run(self):

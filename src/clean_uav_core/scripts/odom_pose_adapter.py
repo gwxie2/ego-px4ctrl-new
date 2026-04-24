@@ -15,10 +15,10 @@ class OdomPoseAdapter:
         self.offset_y = float(rospy.get_param("~offset_y", 0.0))
         self.offset_z = float(rospy.get_param("~offset_z", 0.0))
 
-        self.pose_pub = rospy.Publisher(self.output_pose_topic, PoseStamped, queue_size=10)
+        self.pose_pub = rospy.Publisher(self.output_pose_topic, PoseStamped, queue_size=10, latch=True)
         self.odom_pub = None
         if self.output_odom_topic:
-            self.odom_pub = rospy.Publisher(self.output_odom_topic, Odometry, queue_size=10)
+            self.odom_pub = rospy.Publisher(self.output_odom_topic, Odometry, queue_size=10, latch=True)
         
         self.last_log_time = rospy.Time(0)
 

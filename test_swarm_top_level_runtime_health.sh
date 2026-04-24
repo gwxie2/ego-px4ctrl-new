@@ -10,6 +10,7 @@ source tools/source_phase1_env.sh
 VERSION=""
 OUTPUT_DIR=""
 WAIT_FOR_SESSION_COMPLETE="false"
+LAUNCH_FILE_OVERRIDE=""
 declare -a EXPECTED_NODES=()
 declare -a EXPECTED_TOPICS=()
 declare -a LAUNCH_ARGS=()
@@ -22,6 +23,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --output-dir)
       OUTPUT_DIR="$2"
+      shift 2
+      ;;
+    --launch-file)
+      LAUNCH_FILE_OVERRIDE="$2"
       shift 2
       ;;
     --wait-for-session-complete)
@@ -84,6 +89,10 @@ case "$VERSION" in
     exit 1
     ;;
 esac
+
+if [[ -n "$LAUNCH_FILE_OVERRIDE" ]]; then
+  LAUNCH_FILE="$LAUNCH_FILE_OVERRIDE"
+fi
 
 LAUNCH_LOG=$(mktemp "/tmp/swarm_${VERSION}_runtime_health.XXXXXX.log")
 if [[ -n "$OUTPUT_DIR" ]]; then
@@ -213,22 +222,53 @@ wait_for_file_count() {
   return 1
 }
 
+has_launch_arg_key() {
+  local key="$1"
+  local arg_text
+  for arg_text in "${LAUNCH_ARGS[@]}"; do
+    if [[ "$arg_text" == "$key:="* ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+append_default_launch_arg() {
+  local key="$1"
+  local value="$2"
+  if ! has_launch_arg_key "$key"; then
+    RESOLVED_LAUNCH_ARGS+=("$key:=$value")
+  fi
+}
+
+append_default_launch_token() {
+  local token="$1"
+  local key="${token%%:=*}"
+  local value="${token#*:=}"
+  append_default_launch_arg "$key" "$value"
+}
+
+declare -a RESOLVED_LAUNCH_ARGS=()
+append_default_launch_arg "gui" "false"
+append_default_launch_arg "use_rviz" "false"
+append_default_launch_arg "enable_oscillation" "false"
+append_default_launch_arg "benchmark_enable" "true"
+append_default_launch_arg "benchmark_output_dir" "$BENCHMARK_OUTPUT_DIR"
+append_default_launch_arg "takeoff_delay" "5.0"
+append_default_launch_arg "goal_start_delay" "2.0"
+append_default_launch_arg "planner_post_takeoff_delay" "0.5"
+for default_arg in "${DEFAULT_ARGS[@]}"; do
+  append_default_launch_token "$default_arg"
+done
+RESOLVED_LAUNCH_ARGS+=("${LAUNCH_ARGS[@]}")
+
 echo "=========================================="
 echo "Swarm ${VERSION^^} Top-level Runtime Health"
 echo "=========================================="
 
-echo "[1/6] Launch headless ${VERSION} stack with benchmark enabled"
+echo "[1/6] Launch ${VERSION} stack with benchmark enabled"
 setsid roslaunch clean_uav_core "$LAUNCH_FILE" \
-  gui:=false \
-  use_rviz:=false \
-  enable_oscillation:=false \
-  benchmark_enable:=true \
-  benchmark_output_dir:="$BENCHMARK_OUTPUT_DIR" \
-  takeoff_delay:=5.0 \
-  goal_start_delay:=10.0 \
-  planner_post_takeoff_delay:=0.5 \
-  "${DEFAULT_ARGS[@]}" \
-  "${LAUNCH_ARGS[@]}" \
+  "${RESOLVED_LAUNCH_ARGS[@]}" \
   >"$LAUNCH_LOG" 2>&1 &
 LAUNCH_PID=$!
 trap cleanup EXIT
@@ -258,12 +298,14 @@ done
 echo "[4/6] Validate planner outputs and benchmark telemetry"
 for drone_id in 0 1 2; do
   wait_for_topic_message "/drone_${drone_id}/position_cmd" 40 || fail "No position_cmd for drone_${drone_id}"
-  wait_for_topic_message "/drone_${drone_id}${REPLAN_TOPIC_SUFFIX}" 50 || fail "No replan_info for drone_${drone_id}"
 done
 
 echo "[5/6] Validate benchmark session artifacts"
 wait_for_path_with_min_lines "*_manifest.json" 1 40 || fail "Benchmark manifest was not created"
-wait_for_path_with_min_lines "drone_0_*_replan.csv" 2 40 || fail "Benchmark replan CSV for drone_0 has no data rows"
+for drone_id in 0 1 2; do
+  wait_for_path_with_min_lines "drone_${drone_id}_*_replan.csv" 2 40 || fail "Benchmark replan CSV for drone_${drone_id} has no data rows"
+  wait_for_path_with_min_lines "drone_${drone_id}_*.csv" 2 40 || fail "Benchmark main CSV for drone_${drone_id} has no data rows"
+done
 wait_for_path_with_min_lines "drone_0_*_event.csv" 2 40 || fail "Benchmark event CSV for drone_0 has no data rows"
 
 if [[ "$WAIT_FOR_SESSION_COMPLETE" == "true" ]]; then

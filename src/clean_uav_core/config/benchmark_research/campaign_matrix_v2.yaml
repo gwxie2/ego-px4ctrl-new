@@ -1,0 +1,1052 @@
+output_root: benchmark_artifacts/research_profiles
+default_repetitions: 1
+wait_for_session_complete: true
+cleanup_before_each_run: true
+default_runtime_overrides:
+  gui: false
+  use_rviz: false
+  enable_oscillation: false
+  benchmark_enable: true
+
+phases:
+  - id: stage_a
+    title: Speed Ramping Baseline
+    description: V2 主线速度梯度压力测试，同时保留 V1 参考基线。
+    cases:
+      - name: v2_speed_1p2
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_a_speed_ramping_v2.yaml
+        profile: speed_1p2
+        launch_output: src/clean_uav_core/launch/benchmark_stage_a_v2_speed_1p2.launch
+        launch_file: benchmark_stage_a_v2_speed_1p2.launch
+        label: stage_a_v2_speed_1p2
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          swarm_clearance: 0.35
+      - name: v2_speed_3p0
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_a_speed_ramping_v2.yaml
+        profile: speed_3p0
+        launch_output: src/clean_uav_core/launch/benchmark_stage_a_v2_speed_3p0.launch
+        launch_file: benchmark_stage_a_v2_speed_3p0.launch
+        label: stage_a_v2_speed_3p0
+        runtime_overrides:
+          benchmark_default_vmax: 3.0
+      - name: v2_speed_5p0
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_a_speed_ramping_v2.yaml
+        profile: speed_5p0
+        launch_output: src/clean_uav_core/launch/benchmark_stage_a_v2_speed_5p0.launch
+        launch_file: benchmark_stage_a_v2_speed_5p0.launch
+        label: stage_a_v2_speed_5p0
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+      - name: v2_speed_7p0
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_a_speed_ramping_v2.yaml
+        profile: speed_7p0
+        launch_output: src/clean_uav_core/launch/benchmark_stage_a_v2_speed_7p0.launch
+        launch_file: benchmark_stage_a_v2_speed_7p0.launch
+        label: stage_a_v2_speed_7p0
+        runtime_overrides:
+          benchmark_default_vmax: 7.0
+      - name: v2_speed_10p0
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_a_speed_ramping_v2.yaml
+        profile: speed_10p0
+        launch_output: src/clean_uav_core/launch/benchmark_stage_a_v2_speed_10p0.launch
+        launch_file: benchmark_stage_a_v2_speed_10p0.launch
+        label: stage_a_v2_speed_10p0
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+      - name: v1_reference_speed_1p2
+        version: v1
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_a_speed_ramping_v2.yaml
+        profile: speed_1p2
+        launch_output: src/clean_uav_core/launch/benchmark_stage_a_v1_speed_1p2.launch
+        launch_file: benchmark_stage_a_v1_speed_1p2.launch
+        label: stage_a_v1_speed_1p2
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          swarm_clearance: 0.5
+      - name: v1_reference_speed_5p0
+        version: v1
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_a_speed_ramping_v2.yaml
+        profile: speed_5p0
+        launch_output: src/clean_uav_core/launch/benchmark_stage_a_v1_speed_5p0.launch
+        launch_file: benchmark_stage_a_v1_speed_5p0.launch
+        label: stage_a_v1_speed_5p0
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          swarm_clearance: 0.6
+      - name: v1_reference_speed_10p0
+        version: v1
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_a_speed_ramping_v2.yaml
+        profile: speed_10p0
+        launch_output: src/clean_uav_core/launch/benchmark_stage_a_v1_speed_10p0.launch
+        launch_file: benchmark_stage_a_v1_speed_10p0.launch
+        label: stage_a_v1_speed_10p0
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          swarm_clearance: 0.8
+
+  - id: stage_b
+    title: Stability Recovery
+    description: V2 在 1.2m/s 下的稳定性修复与止血实验。
+    cases:
+      - name: b_baseline_pathological
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_b_stability_recovery_v2.yaml
+        profile: pathological_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_b_pathological.launch
+        launch_file: benchmark_stage_b_pathological.launch
+        label: stage_b_baseline_pathological
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          benchmark_stop_after_terminal_sec: 8.0
+          benchmark_min_session_duration_sec: 28.0
+          benchmark_max_session_duration_sec: 45.0
+      - name: b_perception_aligned
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_b_stability_recovery_v2.yaml
+        profile: perception_aligned
+        launch_output: src/clean_uav_core/launch/benchmark_stage_b_perception.launch
+        launch_file: benchmark_stage_b_perception.launch
+        label: stage_b_perception_aligned
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          benchmark_stop_after_terminal_sec: 8.0
+          benchmark_min_session_duration_sec: 28.0
+          benchmark_max_session_duration_sec: 45.0
+          grid_map_local_update_range_x: 18.0
+          grid_map_local_update_range_y: 18.0
+      - name: b_perception_clearance_plus
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_b_stability_recovery_v2.yaml
+        profile: perception_aligned
+        launch_output: src/clean_uav_core/launch/benchmark_stage_b_perception_clearance.launch
+        launch_file: benchmark_stage_b_perception_clearance.launch
+        label: stage_b_perception_clearance_plus
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          benchmark_stop_after_terminal_sec: 8.0
+          benchmark_min_session_duration_sec: 28.0
+          benchmark_max_session_duration_sec: 45.0
+          grid_map_local_update_range_x: 18.0
+          grid_map_local_update_range_y: 18.0
+          swarm_clearance: 0.5
+      - name: b_perception_dual_guard
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_b_stability_recovery_v2.yaml
+        profile: perception_aligned
+        launch_output: src/clean_uav_core/launch/benchmark_stage_b_perception_dual_guard.launch
+        launch_file: benchmark_stage_b_perception_dual_guard.launch
+        label: stage_b_perception_dual_guard
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          benchmark_stop_after_terminal_sec: 8.0
+          benchmark_min_session_duration_sec: 28.0
+          benchmark_max_session_duration_sec: 45.0
+          grid_map_local_update_range_x: 19.0
+          grid_map_local_update_range_y: 19.0
+          swarm_clearance: 0.5
+          grid_map_obstacles_inflation: 0.48
+      - name: b_obstacle_guarded
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_b_stability_recovery_v2.yaml
+        profile: obstacle_guarded
+        launch_output: src/clean_uav_core/launch/benchmark_stage_b_obstacle.launch
+        launch_file: benchmark_stage_b_obstacle.launch
+        label: stage_b_obstacle_guarded
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          benchmark_stop_after_terminal_sec: 8.0
+          benchmark_min_session_duration_sec: 28.0
+          benchmark_max_session_duration_sec: 45.0
+      - name: b_high_frequency_replan
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_b_stability_recovery_v2.yaml
+        profile: high_frequency_replan
+        launch_output: src/clean_uav_core/launch/benchmark_stage_b_replan.launch
+        launch_file: benchmark_stage_b_replan.launch
+        label: stage_b_high_frequency_replan
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          benchmark_stop_after_terminal_sec: 8.0
+          benchmark_min_session_duration_sec: 28.0
+          benchmark_max_session_duration_sec: 45.0
+          grid_map_local_update_range_x: 16.0
+          grid_map_local_update_range_y: 16.0
+      - name: b_recovery_combo
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_b_stability_recovery_v2.yaml
+        profile: recovery_combo
+        launch_output: src/clean_uav_core/launch/benchmark_stage_b_combo.launch
+        launch_file: benchmark_stage_b_combo.launch
+        label: stage_b_recovery_combo
+        runtime_overrides:
+          benchmark_default_vmax: 1.2
+          benchmark_stop_after_terminal_sec: 8.0
+          benchmark_min_session_duration_sec: 28.0
+          benchmark_max_session_duration_sec: 45.0
+          grid_map_local_update_range_x: 20.0
+          grid_map_local_update_range_y: 20.0
+
+  - id: stage_c
+    title: Time Smoothness Trade-off
+    description: 在 5m/s 下比较 time-priority 与 smooth-priority。
+    cases:
+      - name: c_balanced_reference
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: balanced_reference
+        launch_output: src/clean_uav_core/launch/benchmark_stage_c_balanced.launch
+        launch_file: benchmark_stage_c_balanced.launch
+        label: stage_c_balanced_reference
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+      - name: c_time_priority
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: time_priority
+        launch_output: src/clean_uav_core/launch/benchmark_stage_c_time.launch
+        launch_file: benchmark_stage_c_time.launch
+        label: stage_c_time_priority
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+      - name: c_smooth_priority
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: smooth_priority
+        launch_output: src/clean_uav_core/launch/benchmark_stage_c_smooth.launch
+        launch_file: benchmark_stage_c_smooth.launch
+        label: stage_c_smooth_priority
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+
+  - id: stage_d
+    title: Extreme 10m/s Adaptation
+    description: 10m/s 条件下联合扫描控制刚性、预判距离与安全冗余。
+    cases:
+      - name: d_extreme_baseline
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_baseline.launch
+        launch_file: benchmark_stage_d_baseline.launch
+        label: stage_d_extreme_baseline
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+      - name: d_rigid_control
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid.launch
+        launch_file: benchmark_stage_d_rigid.launch
+        label: stage_d_rigid_control
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+      - name: d_predictive_long_range
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: predictive_long_range
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_predictive.launch
+        launch_file: benchmark_stage_d_predictive.launch
+        label: stage_d_predictive_long_range
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          grid_map_local_update_range_x: 40.0
+          grid_map_local_update_range_y: 40.0
+      - name: d_safety_margin_biased
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: safety_margin_biased
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_safety.launch
+        launch_file: benchmark_stage_d_safety.launch
+        label: stage_d_safety_margin_biased
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+      - name: d_extreme_combo
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_combo
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_combo.launch
+        launch_file: benchmark_stage_d_combo.launch
+        label: stage_d_extreme_combo
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 3.0
+          grid_map_local_update_range_x: 42.0
+          grid_map_local_update_range_y: 42.0
+      - name: d_rigid_smooth_guard
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid_smooth_guard.launch
+        launch_file: benchmark_stage_d_rigid_smooth_guard.launch
+        label: stage_d_rigid_smooth_guard
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          planner_lambda_smooth: 4.8
+          planner_max_acc: 6.0
+          planner_max_jerk: 10.5
+          swarm_clearance: 0.8
+      - name: d_rigid_clearance_plus
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid_clearance.launch
+        launch_file: benchmark_stage_d_rigid_clearance.launch
+        label: stage_d_rigid_clearance_plus
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.82
+          grid_map_obstacles_inflation: 0.3
+      - name: d_rigid_lambda_light
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid_lambda_light.launch
+        launch_file: benchmark_stage_d_rigid_lambda_light.launch
+        label: stage_d_rigid_lambda_light
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          planner_lambda_smooth: 4.4
+      - name: d_rigid_clearance_light
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid_clearance_light.launch
+        launch_file: benchmark_stage_d_rigid_clearance_light.launch
+        label: stage_d_rigid_clearance_light
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.78
+          grid_map_obstacles_inflation: 0.29
+      - name: d_lambda_kv_trim
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_lambda_kv_trim.launch
+        launch_file: benchmark_stage_d_lambda_kv_trim.launch
+        label: stage_d_lambda_kv_trim
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.6
+          planner_lambda_smooth: 4.4
+      - name: d_lambda_kv_mid
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_lambda_kv_mid.launch
+        launch_file: benchmark_stage_d_lambda_kv_mid.launch
+        label: stage_d_lambda_kv_mid
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.7
+          planner_lambda_smooth: 4.4
+      - name: d_rigid_clearance_micro
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid_clearance_micro.launch
+        launch_file: benchmark_stage_d_rigid_clearance_micro.launch
+        label: stage_d_rigid_clearance_micro
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.77
+          grid_map_obstacles_inflation: 0.285
+      - name: d_rigid_clearance_balance
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid_clearance_balance.launch
+        launch_file: benchmark_stage_d_rigid_clearance_balance.launch
+        label: stage_d_rigid_clearance_balance
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.2875
+      - name: d_rigid_clearance_shallow
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid_clearance_shallow.launch
+        launch_file: benchmark_stage_d_rigid_clearance_shallow.launch
+        label: stage_d_rigid_clearance_shallow
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.7725
+          grid_map_obstacles_inflation: 0.28625
+      - name: d_rigid_clearance_balance_gap_probe
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_d_rigid_clearance_balance_gap_probe.launch
+        launch_file: benchmark_stage_d_rigid_clearance_balance_gap_probe.launch
+        label: stage_d_rigid_clearance_balance_gap_probe
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          benchmark_command_age_warn_ms: 150.0
+          benchmark_command_interval_warn_ms: 150.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.2875
+          planner_astar_pool_size: 220
+          planner_astar_debug_logging: true
+          traj_server_enable_stale_traj_extrapolation: true
+          traj_server_stale_traj_extrapolation_timeout: 0.35
+          traj_server_retime_position_cmd_now: true
+
+  - id: stage_e
+    title: Sensor Degradation Comparison
+    description: 5m/s 与 10m/s 下 clean/mild/extreme 对照，用于评估感知退化对规划与控制的影响。
+    cases:
+      - name: e_5p0_clean
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: smooth_priority
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_5p0_clean.launch
+        launch_file: benchmark_stage_e_5p0_clean.launch
+        label: stage_e_5p0_clean
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: false
+          sensor_degradation_mode: clean
+      - name: e_5p0_nominal
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: smooth_priority
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_5p0_nominal.launch
+        launch_file: benchmark_stage_e_5p0_nominal.launch
+        label: stage_e_5p0_nominal
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: true
+          sensor_degradation_mode: nominal
+      - name: e_5p0_mild_no_latency
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: smooth_priority
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_5p0_mild_no_latency.launch
+        launch_file: benchmark_stage_e_5p0_mild_no_latency.launch
+        label: stage_e_5p0_mild_no_latency
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: true
+          sensor_degradation_mode: mild_no_latency
+      - name: e_5p0_mild
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: smooth_priority
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_5p0_mild.launch
+        launch_file: benchmark_stage_e_5p0_mild.launch
+        label: stage_e_5p0_mild
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: true
+          sensor_degradation_mode: mild
+      - name: e_5p0_extreme
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: smooth_priority
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_5p0_extreme.launch
+        launch_file: benchmark_stage_e_5p0_extreme.launch
+        label: stage_e_5p0_extreme
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: true
+          sensor_degradation_mode: extreme
+      # --- Robust tuning variants (P0: reduced inflation 0.20 + P2: median filter 3x3) ---
+      - name: e_5p0_nominal_robust
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_e_high_speed_track_v2.yaml
+        profile: smooth_priority_robust
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_5p0_nominal_robust.launch
+        launch_file: benchmark_stage_e_5p0_nominal_robust.launch
+        label: stage_e_5p0_nominal_robust
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: true
+          sensor_degradation_mode: nominal
+          depth_median_filter_size: 3
+          use_multitopology_trajs: true
+      - name: e_5p0_mild_robust
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: smooth_priority_robust
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_5p0_mild_robust.launch
+        launch_file: benchmark_stage_e_5p0_mild_robust.launch
+        label: stage_e_5p0_mild_robust
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: true
+          sensor_degradation_mode: mild
+          depth_median_filter_size: 3
+      - name: e_10p0_clean
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_10p0_clean.launch
+        launch_file: benchmark_stage_e_10p0_clean.launch
+        label: stage_e_10p0_clean
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: false
+          sensor_degradation_mode: clean
+      - name: e_10p0_mild
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_10p0_mild.launch
+        launch_file: benchmark_stage_e_10p0_mild.launch
+        label: stage_e_10p0_mild
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: true
+          sensor_degradation_mode: mild
+      - name: e_10p0_extreme
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_e_10p0_extreme.launch
+        launch_file: benchmark_stage_e_10p0_extreme.launch
+        label: stage_e_10p0_extreme
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: true
+          sensor_degradation_mode: extreme
+
+  # ---- Stage F: 改进验证组 ----
+  - id: stage_f
+    title: Improvement Validation
+    description: |
+      基于 d_rigid_clearance_balance(10m/s) 和 e_5p0_clean(5m/s) 各加入两项改进：
+        1. planner_weight_obstacle=20000 — 提高障碍惩罚权重，降低 fine_collision_unresolved
+        2. planner_astar_latency_predict=0.03 — A* 起点前向偏置 30ms，减少轨迹段间隙
+      对比基线：d_rigid_clearance_balance 和 e_5p0_clean
+    cases:
+      - name: f_10p0_improved
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_improved.launch
+        launch_file: benchmark_stage_f_10p0_improved.launch
+        label: stage_f_10p0_improved
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.2875
+          planner_weight_obstacle: 20000.0
+          planner_astar_latency_predict: 0.03
+      # --- 10m/s inflation 修复系列 (2026-04-12) ---
+      # 根因: f_10p0_improved 中 weight_obstacle=20000 + inflation=0.2875 过小导致
+      # optimizer_failed 从 31 次升到 100 次。修复路径: 先扩大 inflation 给 MINCO 充足可行域。
+      - name: f_10p0_inflation_safe
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_inflation_safe.launch
+        launch_file: benchmark_stage_f_10p0_inflation_safe.launch
+        label: stage_f_10p0_inflation_safe
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.31
+      - name: f_10p0_inflation_w15k
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_inflation_w15k.launch
+        launch_file: benchmark_stage_f_10p0_inflation_w15k.launch
+        label: stage_f_10p0_inflation_w15k
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.31
+          planner_weight_obstacle: 15000.0
+      - name: f_10p0_inflation_w20k
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_inflation_w20k.launch
+        launch_file: benchmark_stage_f_10p0_inflation_w20k.launch
+        label: stage_f_10p0_inflation_w20k
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.31
+          planner_weight_obstacle: 20000.0
+      # --- 10m/s inflation 精调系列 (2026-04-12) ---
+      # inflation_safe run_02 结论: inf=0.31 把 drone_2 tracking_error 从 30m→0.86m
+      # weight_obstacle>10000 有急剧崩溃阈值,固定为默认 10000
+      # 继续往上微调 inflation，看能否把 optimizer_failed 从 60 进一步降低
+      - name: f_10p0_inf_320
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_inf_320.launch
+        launch_file: benchmark_stage_f_10p0_inf_320.launch
+        label: stage_f_10p0_inf_320
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.32
+      - name: f_10p0_inf_330
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_inf_330.launch
+        launch_file: benchmark_stage_f_10p0_inf_330.launch
+        label: stage_f_10p0_inf_330
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.33
+      - name: f_10p0_inf_340
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_inf_340.launch
+        launch_file: benchmark_stage_f_10p0_inf_340.launch
+        label: stage_f_10p0_inf_340
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.34
+      # --- 10m/s swarm_clearance 扫描 (2026-04-12) ---
+      # 根因: drone_2 启动阶段 optimizer_failed×4 → pos徘徊成圈（打转）
+      # 修复路径: 降低 swarm_clearance 扩大初始可行域，配合 inf=0.33 最优基础
+      - name: f_10p0_inf333_clr70
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_inf333_clr70.launch
+        launch_file: benchmark_stage_f_10p0_inf333_clr70.launch
+        label: stage_f_10p0_inf333_clr70
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.70
+          grid_map_obstacles_inflation: 0.33
+      - name: f_10p0_inf333_clr72
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: extreme_baseline
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_10p0_inf333_clr72.launch
+        launch_file: benchmark_stage_f_10p0_inf333_clr72.launch
+        label: stage_f_10p0_inf333_clr72
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.72
+          grid_map_obstacles_inflation: 0.33
+      - name: f_5p0_improved
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_c_time_smooth_tradeoff_v2.yaml
+        profile: smooth_priority
+        launch_output: src/clean_uav_core/launch/benchmark_stage_f_5p0_improved.launch
+        launch_file: benchmark_stage_f_5p0_improved.launch
+        label: stage_f_5p0_improved
+        runtime_overrides:
+          benchmark_default_vmax: 5.0
+          planner_start_z_threshold: 0.2
+          planner_start_stable_duration: 0.8
+          sensor_degradation_enabled: false
+          sensor_degradation_mode: clean
+          planner_weight_obstacle: 20000.0
+
+  # ============================================================
+  # Stage G — x1.5 世界参数适配扫描 (2026-04-12)
+  # 根因: 路径长度 45m，但 planning_horizon=20m、local_update_range=30m 未缩放
+  #       → pillar(6,4.5) 在中途被穿越，MINCO 高速收敛失败
+  # 扫描策略:
+  #   G1: horizon=30m, local_range=45m, inf=0.28 (基准缩放)
+  #   G2: horizon=30m, local_range=45m, inf=0.25 (降低 MINCO 约束)
+  #   G3: horizon=30m, local_range=45m, inf=0.22 (最宽松)
+  #   G4: horizon=30m, local_range=30m,  inf=0.28 (控制变量：仅 horizon)
+  # ============================================================
+  - id: stage_g
+    title: x1.5 World Parameter Adaptation Scan
+    description: >
+      Adapt planning_horizon and local_update_range to x1.5 scaled world (45m paths).
+      Original parameters tuned for 30m paths caused cascade optimizer failures at high speed.
+    version: v2
+    default_repetitions: 1
+    wait_for_session_complete: true
+    cleanup_before_each_run: true
+    cases:
+      # G1: 全部距离参数 ×1.5，inflation=0.28
+      - name: g1_scaled_base
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g1_scaled_base
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g1_scaled_base.launch
+        launch_file: benchmark_stage_g_g1_scaled_base.launch
+        label: stage_g_g1_scaled_base
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.28
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0
+      # G2: 全部距离参数 ×1.5，inflation=0.25
+      - name: g2_scaled_inf25
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g2_scaled_inf25
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g2_scaled_inf25.launch
+        launch_file: benchmark_stage_g_g2_scaled_inf25.launch
+        label: stage_g_g2_scaled_inf25
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.25
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0
+      # G3: 全部距离参数 ×1.5，inflation=0.22（最大 MINCO 空间）
+      - name: g3_scaled_inf22
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g3_scaled_inf22
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g3_scaled_inf22.launch
+        launch_file: benchmark_stage_g_g3_scaled_inf22.launch
+        label: stage_g_g3_scaled_inf22
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.22
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0
+      # G4: 控制变量 — 仅 horizon 扩到 30m，local_range 保持 30m
+      - name: g4_hor30_range30
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g4_hor30_range30
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g4_hor30_range30.launch
+        launch_file: benchmark_stage_g_g4_hor30_range30.launch
+        label: stage_g_g4_hor30_range30
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.28
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0
+          planner_astar_latency_predict: 0.03
+      # G5: 在 G4 基础上再提高 inflation，优先压制中途冻结与贴障飞行
+      - name: g5_inf30_lp03
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g5_inf30_lp03
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g5_inf30_lp03.launch
+        launch_file: benchmark_stage_g_g5_inf30_lp03.launch
+        label: stage_g_g5_inf30_lp03
+        runtime_overrides:
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.30
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0
+          planner_astar_latency_predict: 0.03
+      # G6: 可视化 5m/s 诊断实验，沿用最稳的 g2 参数并打开 GUI/RViz
+      - name: g6_viz_5ms
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g2_scaled_inf25
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g6_viz_5ms.launch
+        launch_file: benchmark_stage_g_g6_viz_5ms.launch
+        label: stage_g_g6_viz_5ms
+        runtime_overrides:
+          gui: true
+          use_rviz: true
+          benchmark_default_vmax: 5.0
+          planner_max_vel: 5.0
+          planner_max_acc: 4.0
+          planner_max_jerk: 8.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.25
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0
+      # G7: 更低速的可视化诊断实验，继续降低到 3m/s
+      - name: g7_viz_3ms
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g6_viz_3ms
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g7_viz_3ms.launch
+        launch_file: benchmark_stage_g_g7_viz_3ms.launch
+        label: stage_g_g7_viz_3ms
+        runtime_overrides:
+          gui: true
+          use_rviz: true
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.6
+          grid_map_obstacles_inflation: 0.25
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0
+      # G8: 更慢的 RViz-only 可视化实验，进一步降到 1.2m/s
+      - name: g8_viz_1p2ms
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g7_viz_1p2ms
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g8_viz_1p2ms.launch
+        launch_file: benchmark_stage_g_g8_viz_1p2ms.launch
+        label: stage_g_g8_viz_1p2ms
+        runtime_overrides:
+          gui: false
+          use_rviz: false
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.3
+          swarm_clearance: 0.4
+          grid_map_obstacles_inflation: 0.45
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0
+      # G10: 短距离 A* 支线 — 大幅缩小规划搜索范围以排除计算量过大
+      #   planning_horizon: 30m→10m, astar_step_factor: 3.0→6.0 (step 0.3→0.6m)
+      #   astar_pool_size: 100→40 (搜索半径 15m→12m, 节点 1M→64K)
+      #   local_update_range: 30m→15m, 保持 10m/s 速度不变
+      - name: g10_short_astar
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g2_scaled_inf25
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g10_short_astar.launch
+        launch_file: benchmark_stage_g_g10_short_astar.launch
+        label: stage_g_g10_short_astar
+        runtime_overrides:
+          gui: false
+          use_rviz: false
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.25
+          grid_map_local_update_range_x: 15.0
+          grid_map_local_update_range_y: 15.0
+          planner_astar_step_factor: 6.0
+          planner_astar_pool_size: 40
+          planner_planning_horizon: 10.0
+      # G11: horizon=15m 中间值扫描
+      #   保持 g10 的 step_factor=6.0, pool=40, local_update_range=15m
+      #   只将 planning_horizon 从 10m 提升到 15m
+      - name: g11_horizon15
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g2_scaled_inf25
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g11_horizon15.launch
+        launch_file: benchmark_stage_g_g11_horizon15.launch
+        label: stage_g_g11_horizon15
+        runtime_overrides:
+          gui: false
+          use_rviz: false
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.25
+          grid_map_local_update_range_x: 15.0
+          grid_map_local_update_range_y: 15.0
+          planner_astar_step_factor: 6.0
+          planner_astar_pool_size: 40
+          planner_planning_horizon: 15.0
+      # G12: horizon=20m 中间值扫描
+      #   保持 g10 的 step_factor=6.0, pool=40, local_update_range=15m
+      #   只将 planning_horizon 提升到 20m
+      - name: g12_horizon20
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g2_scaled_inf25
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g12_horizon20.launch
+        launch_file: benchmark_stage_g_g12_horizon20.launch
+        label: stage_g_g12_horizon20
+        runtime_overrides:
+          gui: false
+          use_rviz: false
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.25
+          grid_map_local_update_range_x: 15.0
+          grid_map_local_update_range_y: 15.0
+          planner_astar_step_factor: 6.0
+          planner_astar_pool_size: 40
+          planner_planning_horizon: 20.0
+      # G9: Stage G 基线 g2 + RViz-only 可视化监控（不加 GUI，不加速度覆盖）
+      - name: g9_viz_baseline
+        version: v2
+        swarm_config: src/clean_uav_core/config/benchmark_research/stage_d_extreme_10ms_v2.yaml
+        profile: g2_scaled_inf25
+        launch_output: src/clean_uav_core/launch/benchmark_stage_g_g9_viz_baseline.launch
+        launch_file: benchmark_stage_g_g9_viz_baseline.launch
+        label: stage_g_g9_viz_baseline
+        runtime_overrides:
+          gui: false
+          use_rviz: true
+          benchmark_default_vmax: 10.0
+          benchmark_stop_after_terminal_sec: 6.0
+          benchmark_min_session_duration_sec: 12.0
+          benchmark_max_session_duration_sec: 30.0
+          px4ctrl_kv: 2.8
+          swarm_clearance: 0.775
+          grid_map_obstacles_inflation: 0.25
+          grid_map_local_update_range_x: 30.0
+          grid_map_local_update_range_y: 30.0
+          planner_astar_step_factor: 3.0

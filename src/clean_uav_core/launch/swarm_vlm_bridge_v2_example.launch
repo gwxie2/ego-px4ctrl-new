@@ -1,0 +1,29 @@
+<launch>
+  <arg name="drone_id" default="0"/>
+  <arg name="detector_backend" default="manual"/>
+  <arg name="allow_manual_pixel_override" default="true"/>
+  <arg name="default_text_query" default=""/>
+  <arg name="enable_cli" default="true"/>
+  <arg name="require_rgb_for_manual_input" default="false"/>
+  <arg name="goal_topic_v2" default="/goal_with_id"/>
+  <arg name="map_size_z" default="5.0"/>
+  <arg name="virtual_ceil_height" default="3.0"/>
+
+  <include file="$(find clean_uav_core)/launch/swarm_vlm_bridge_instance.launch">
+    <arg name="drone_id" value="$(arg drone_id)"/>
+    <arg name="output_mode" value="v2"/>
+    <arg name="detector_backend" value="$(arg detector_backend)"/>
+    <arg name="allow_manual_pixel_override" value="$(arg allow_manual_pixel_override)"/>
+    <arg name="default_text_query" value="$(arg default_text_query)"/>
+    <arg name="enable_cli" value="$(arg enable_cli)"/>
+    <arg name="use_camera_info" value="true"/>
+    <arg name="require_rgb_for_manual_input" value="$(arg require_rgb_for_manual_input)"/>
+    <arg name="odom_topic" value="$(eval '/drone_%s/odom' % arg('drone_id'))"/>
+    <arg name="depth_topic_raw" value="$(eval '/iris_%s/realsense/depth_camera/depth/image_raw' % arg('drone_id'))"/>
+    <arg name="image_topic_raw" value="$(eval '/iris_%s/realsense/depth_camera/color/image_raw' % arg('drone_id'))"/>
+    <arg name="camera_info_topic" value="$(eval '/iris_%s/realsense/depth_camera/color/camera_info' % arg('drone_id'))"/>
+    <arg name="goal_topic_v2" value="$(arg goal_topic_v2)"/>
+    <arg name="map_size_z" value="$(arg map_size_z)"/>
+    <arg name="virtual_ceil_height" value="$(arg virtual_ceil_height)"/>
+  </include>
+</launch>

@@ -12,12 +12,14 @@ namespace ego_planner
     have_recv_pre_agent_ = false;
     flag_escape_emergency_ = true;
     mandatory_stop_ = false;
+    sequential_start_enter_stamp_ = ros::Time(0.0);
 
     /*  fsm param  */
     nh.param("fsm/flight_type", target_type_, -1);
     nh.param("fsm/thresh_replan_time", replan_thresh_, -1.0);
     nh.param("fsm/planning_horizon", planning_horizen_, -1.0);
     nh.param("fsm/emergency_time", emergency_time_, 1.0);
+    nh.param("fsm/astar_latency_predict", astar_latency_predict_s_, 0.0);
     nh.param("fsm/realworld_experiment", flag_realworld_experiment_, false);
     nh.param("fsm/fail_safe", enable_fail_safe_, true);
     nh.param("fsm/ground_height_measurement", enable_ground_height_measurement_, false);
@@ -25,6 +27,7 @@ namespace ego_planner
     nh.param("swarm/time_warn_threshold", swarm_time_warn_threshold_, 0.25);
     nh.param("swarm/time_reject_threshold", swarm_time_reject_threshold_, 10.0);
     nh.param("swarm/filter_far_trajectories", swarm_filter_far_trajectories_, false);
+    nh.param("swarm/pre_traj_wait_timeout", swarm_pre_traj_wait_timeout_, 2.0);
 
     nh.param("fsm/waypoint_num", waypoint_num_, -1);
     for (int i = 0; i < waypoint_num_; i++)
@@ -125,7 +128,21 @@ namespace ego_planner
 
     case SEQUENTIAL_START: // for swarm or single drone with drone_id = 0
     {
-      if (planner_manager_->pp_.drone_id <= 0 || (planner_manager_->pp_.drone_id >= 1 && have_recv_pre_agent_))
+      bool allow_initial_plan = planner_manager_->pp_.drone_id <= 0 || have_recv_pre_agent_;
+      if (!allow_initial_plan && swarm_pre_traj_wait_timeout_ > 0.0 && sequential_start_enter_stamp_.toSec() > 0.0)
+      {
+        const double wait_time = (ros::Time::now() - sequential_start_enter_stamp_).toSec();
+        if (wait_time >= swarm_pre_traj_wait_timeout_)
+        {
+          ROS_WARN("SEQUENTIAL_START timeout after %.2fs for drone %d, forcing initial plan without prev traj",
+                   wait_time,
+                   planner_manager_->pp_.drone_id);
+          allow_initial_plan = true;
+          have_recv_pre_agent_ = true;
+        }
+      }
+
+      if (allow_initial_plan)
       {
         bool success = planFromGlobalTraj(10); // zx-todo
         if (success)
@@ -257,6 +274,10 @@ namespace ego_planner
     static string state_str[8] = {"INIT", "WAIT_TARGET", "GEN_NEW_TRAJ", "REPLAN_TRAJ", "EXEC_TRAJ", "EMERGENCY_STOP", "SEQUENTIAL_START"};
     int pre_s = int(exec_state_);
     exec_state_ = new_state;
+    if (new_state == SEQUENTIAL_START && pre_s != int(SEQUENTIAL_START))
+    {
+      sequential_start_enter_stamp_ = ros::Time::now();
+    }
     cout << "[" + pos_call + "]"
          << "Drone:" << planner_manager_->pp_.drone_id << ", from " + state_str[pre_s] + " to " + state_str[int(new_state)] << endl;
     publishBenchmarkEvent(
@@ -519,6 +540,7 @@ namespace ego_planner
     msg.local_target_distance = (start_pt_ - local_target_pt_).norm();
     msg.trigger_reason = replan_trigger_reason_;
     msg.failure_reason = planner_manager_->getLastFailureReason();
+    msg.failure_detail = planner_manager_->getLastFailureDetail();
     msg.a_star_expanded_nodes = planner_manager_->getLastAStarExpandedNodes();
     msg.gradient_norm_final = planner_manager_->getLastGradientNormFinal();
     msg.cost_initial = planner_manager_->getLastCostInitial();
@@ -535,17 +557,20 @@ namespace ego_planner
     start_vel_ = odom_vel_;
     start_acc_.setZero();
 
-    bool flag_random_poly_init;
-    if (timesOfConsecutiveStateCalls().first == 1)
-      flag_random_poly_init = false;
-    else
-      flag_random_poly_init = true;
+    bool use_random_poly_init = (timesOfConsecutiveStateCalls().first != 1);
 
     for (int i = 0; i < trial_times; i++)
     {
-      if (callReboundReplan(true, flag_random_poly_init))
+      const bool try_random_now = use_random_poly_init || i > 0;
+      if (callReboundReplan(true, try_random_now))
       {
         return true;
+      }
+
+      if (!use_random_poly_init && i == 0)
+      {
+        ROS_WARN("Initial global trajectory failed once for drone %d, switching to random init retries",
+                 planner_manager_->pp_.drone_id);
       }
     }
     return false;
@@ -557,9 +582,16 @@ namespace ego_planner
     LocalTrajData *info = &planner_manager_->traj_.local_traj;
     double t_cur = ros::Time::now().toSec() - info->start_time;
 
-    start_pt_ = info->traj.getPos(t_cur);
-    start_vel_ = info->traj.getVel(t_cur);
-    start_acc_ = info->traj.getAcc(t_cur);
+    // Forward-predict start state by astar_latency_predict_s_ to compensate for
+    // planning + ROS propagation latency. Only activate when moving (vel > 0.5 m/s)
+    // and cap at trajectory duration to avoid out-of-bound queries.
+    const double vel_norm = odom_vel_.norm();
+    const double t_predict = (astar_latency_predict_s_ > 0.0 && vel_norm > 0.5)
+                                 ? std::min(t_cur + astar_latency_predict_s_, info->duration)
+                                 : t_cur;
+    start_pt_ = info->traj.getPos(t_predict);
+    start_vel_ = info->traj.getVel(t_predict);
+    start_acc_ = info->traj.getAcc(t_predict);
 
     bool success = callReboundReplan(false, false);
 
@@ -702,7 +734,29 @@ namespace ego_planner
 
     // plan first global waypoint
     wpt_id_ = 0;
-    planNextWaypoint(wps_[wpt_id_]);
+    constexpr int kInitialPlanRetryCount = 100;
+    for (int attempt = 0; ros::ok() && attempt < kInitialPlanRetryCount; ++attempt)
+    {
+      if (planNextWaypoint(wps_[wpt_id_]))
+      {
+        return;
+      }
+
+      if (attempt == 0 || (attempt + 1) % 10 == 0)
+      {
+        ROS_WARN("Initial preset trajectory plan failed for drone %d (attempt %d/%d), retrying...",
+                 planner_manager_->pp_.drone_id,
+                 attempt + 1,
+                 kInitialPlanRetryCount);
+      }
+
+      ros::spinOnce();
+      ros::Duration(0.1).sleep();
+    }
+
+    ROS_ERROR("Failed to generate the initial preset trajectory for drone %d after %d attempts",
+              planner_manager_->pp_.drone_id,
+              kInitialPlanRetryCount);
   }
 
   void EGOReplanFSM::mandatoryStopCallback(const std_msgs::Empty &msg)

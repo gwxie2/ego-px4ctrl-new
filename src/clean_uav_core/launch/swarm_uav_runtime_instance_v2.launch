@@ -7,9 +7,10 @@
   <arg name="init_y"/>
   <arg name="init_z"/>
 
-  <arg name="target_x"/>
-  <arg name="target_y"/>
-  <arg name="target_z"/>
+  <arg name="goal_mode" default="fixed"/>
+  <arg name="target_x" default="$(arg init_x)"/>
+  <arg name="target_y" default="$(arg init_y)"/>
+  <arg name="target_z" default="$(arg init_z)"/>
 
   <arg name="child_frame_id" default="base_link"/>
   <arg name="world_frame" default="world"/>
@@ -38,9 +39,22 @@
   <arg name="planner_replan_time" default="1.0"/>
   <arg name="planner_emergency_time" default="1.0"/>
   <arg name="planner_weight_time" default="10.0"/>
+  <arg name="planner_astar_pool_size" default="100"/>
+  <arg name="planner_astar_debug_logging" default="false"/>
+  <arg name="planner_astar_step_factor" default="1.0"/>
+  <arg name="planner_weight_obstacle" default="-1.0"/><!-- -1: use base YAML default (10000) -->
+  <arg name="planner_astar_latency_predict" default="0.0"/><!-- seconds of forward prediction in planFromLocalTraj -->
   <arg name="planner_fail_safe" default="true"/>
-  <arg name="planner_flight_type" default="2"/>
+  <arg name="planner_flight_type" default="$(eval 1 if str(arg('goal_mode')).lower() == 'search' else 2)"/>
   <arg name="planner_realworld_experiment" default="false"/>
+  <arg name="use_multitopology_trajs" default="false"/>
+  <arg name="sensor_degradation_enabled" default="false"/>
+  <arg name="sensor_degradation_mode" default="clean"/>
+  <arg name="depth_median_filter_size" default="0"/>
+
+  <arg name="grid_map_use_depth_filter" default="true"/>
+  <arg name="grid_map_depth_filter_tolerance" default="0.15"/>
+  <arg name="grid_map_depth_filter_maxdist" default="25.0"/>
 
   <arg name="grid_map_resolution" default="0.1"/>
   <arg name="map_size_x" default="80.0"/>
@@ -49,6 +63,9 @@
   <arg name="grid_map_ground_height" default="-0.01"/>
   <arg name="grid_map_odom_depth_timeout" default="2.0"/>
   <arg name="grid_map_depth_filter_mindist" default="0.1"/>
+  <arg name="grid_map_depth_filter_margin" default="2"/>
+  <arg name="grid_map_k_depth_scaling_factor" default="1000.0"/>
+  <arg name="grid_map_skip_pixel" default="2"/>
   <arg name="grid_map_local_update_range_x" default="15.0"/>
   <arg name="grid_map_local_update_range_y" default="15.0"/>
   <arg name="grid_map_local_update_range_z" default="4.5"/>
@@ -63,6 +80,17 @@
   <arg name="planner_start_stable_duration" default="1.5"/>
   <arg name="planner_start_timeout" default="60.0"/>
   <arg name="planner_post_takeoff_delay" default="1.0"/>
+  <arg name="swarm_wait_for_all_uavs" default="false"/>
+  <arg name="swarm_num_uavs" default="1"/>
+  <arg name="swarm_odom_topic_template" default="/drone_%d/odom"/>
+  <arg name="planner_log_to_file" default="false"/>
+  <arg name="planner_log_file" default=""/>
+  <arg name="traj_server_enable_stale_traj_extrapolation" default="false"/>
+  <arg name="traj_server_stale_traj_extrapolation_timeout" default="0.35"/>
+  <arg name="traj_server_retime_position_cmd_now" default="true"/>
+  <arg name="traj_server_startup_yaw_hold_time" default="0.8"/>
+  <arg name="traj_server_startup_yaw_release_speed" default="0.6"/>
+  <arg name="traj_server_startup_yaw_release_distance" default="0.35"/>
 
   <group ns="$(arg drone_ns)">
     <include file="$(find clean_uav_core)/launch/phase1_truth_odom.launch">
@@ -73,19 +101,31 @@
       <arg name="child_frame" value="$(arg child_frame_id)"/>
     </include>
 
+    <node pkg="clean_uav_core" type="sensor_noise_injector.py" name="sensor_noise_injector" output="screen">
+      <param name="sensor_degradation_enabled" value="$(arg sensor_degradation_enabled)"/>
+      <param name="sensor_degradation_mode" value="$(arg sensor_degradation_mode)"/>
+      <param name="depth_median_filter_size" value="$(arg depth_median_filter_size)"/>
+      <param name="odom_input_topic" value="$(arg base_odom_input_topic)"/>
+      <param name="odom_output_topic" value="sensor_odom"/>
+      <param name="depth_input_topic" value="depth_preprocessed"/>
+      <param name="depth_output_topic" value="depth_output"/>
+      <param name="min_depth_m" value="$(arg grid_map_depth_filter_mindist)"/>
+      <param name="max_depth_m" value="$(arg grid_map_depth_filter_maxdist)"/>
+    </node>
+
     <group if="$(arg enable_vins)">
       <node pkg="vins" type="vins_node" name="vins_estimator" output="screen" args="$(find vins)/../config/xtdrone_sitl/iris_$(arg drone_id)_px4_sitl_config.yaml"/>
     </group>
 
     <node pkg="clean_uav_core" type="depth_float_to_uint16.py" name="depth_float_to_uint16" output="screen">
       <param name="input_depth_topic" value="$(arg depth_topic_raw)"/>
-      <param name="output_depth_topic" value="depth_output"/>
+      <param name="output_depth_topic" value="depth_preprocessed"/>
       <param name="min_m" value="$(arg grid_map_depth_filter_mindist)"/>
-      <param name="max_m" value="25.0"/>
+      <param name="max_m" value="$(arg grid_map_depth_filter_maxdist)"/>
     </node>
 
     <node pkg="clean_uav_core" type="odom_pose_adapter.py" name="odom_adapter" output="screen">
-      <param name="input_odom_topic" value="$(arg base_odom_input_topic)"/>
+      <param name="input_odom_topic" value="sensor_odom"/>
       <param name="output_odom_topic" value="odom"/>
       <param name="output_pose_topic" value="pose"/>
       <param name="frame_id_override" value="$(arg world_frame)"/>
@@ -94,8 +134,8 @@
       <param name="offset_z" value="$(eval 0.0 if str(arg('use_truth_odom_runtime')).lower() in ['true', '1', 'yes'] else float(arg('init_z')))"/>
     </node>
 
-    <node pkg="ego_planner_v2" type="ego_planner_node_v2" name="ego_planner_v2" output="screen"
-          launch-prefix="$(find clean_uav_core)/scripts/wait_for_takeoff_and_exec.py --odom-topic odom --z-threshold $(arg planner_start_z_threshold) --stable-duration $(arg planner_start_stable_duration) --timeout $(arg planner_start_timeout) --post-ready-delay $(arg planner_post_takeoff_delay) --">
+        <node pkg="ego_planner_v2" type="ego_planner_node_v2" name="ego_planner_v2" output="screen"
+              launch-prefix="$(find clean_uav_core)/scripts/wait_for_takeoff_and_exec.py --odom-topic $(arg base_odom_input_topic) --z-threshold $(arg planner_start_z_threshold) --stable-duration $(arg planner_start_stable_duration) --timeout $(arg planner_start_timeout) --post-ready-delay $(arg planner_post_takeoff_delay) --wait-all-ready $(arg swarm_wait_for_all_uavs) --swarm-size $(arg swarm_num_uavs) --swarm-odom-template $(arg swarm_odom_topic_template) --log-file $(arg planner_log_file) --">
       <remap from="~odom_world" to="odom"/>
       <remap from="~mandatory_stop" to="mandatory_stop_to_planner"/>
       <remap from="~planning/trajectory" to="planning/trajectory"/>
@@ -120,9 +160,9 @@
       <param name="fsm/realworld_experiment" value="$(arg planner_realworld_experiment)"/>
       <param name="fsm/fail_safe" value="$(arg planner_fail_safe)"/>
       <param name="fsm/waypoint_num" value="1" type="int"/>
-      <param name="fsm/waypoint0_x" value="$(arg target_x)" type="double"/>
-      <param name="fsm/waypoint0_y" value="$(arg target_y)" type="double"/>
-      <param name="fsm/waypoint0_z" value="$(arg target_z)" type="double"/>
+      <param name="fsm/waypoint0_x" value="$(eval float(arg('init_x')) if str(arg('goal_mode')).lower() == 'search' else float(arg('target_x')))" type="double"/>
+      <param name="fsm/waypoint0_y" value="$(eval float(arg('init_y')) if str(arg('goal_mode')).lower() == 'search' else float(arg('target_y')))" type="double"/>
+      <param name="fsm/waypoint0_z" value="$(eval float(arg('init_z')) if str(arg('goal_mode')).lower() == 'search' else float(arg('target_z')))" type="double"/>
 
       <param name="grid_map/resolution" value="$(arg grid_map_resolution)"/>
       <param name="grid_map/map_size_x" value="$(arg map_size_x)"/>
@@ -133,13 +173,20 @@
       <param name="grid_map/local_update_range_z" value="$(arg grid_map_local_update_range_z)"/>
       <param name="grid_map/ground_height" value="$(arg grid_map_ground_height)"/>
       <param name="grid_map/odom_depth_timeout" value="$(arg grid_map_odom_depth_timeout)"/>
+      <param name="grid_map/use_depth_filter" value="$(arg grid_map_use_depth_filter)"/>
+      <param name="grid_map/depth_filter_tolerance" value="$(arg grid_map_depth_filter_tolerance)"/>
+      <param name="grid_map/depth_filter_maxdist" value="$(arg grid_map_depth_filter_maxdist)"/>
       <param name="grid_map/depth_filter_mindist" value="$(arg grid_map_depth_filter_mindist)"/>
+      <param name="grid_map/depth_filter_margin" value="$(arg grid_map_depth_filter_margin)"/>
+      <param name="grid_map/k_depth_scaling_factor" value="$(arg grid_map_k_depth_scaling_factor)"/>
+      <param name="grid_map/skip_pixel" value="$(arg grid_map_skip_pixel)"/>
       <param name="grid_map/obstacles_inflation" value="$(arg grid_map_obstacles_inflation)"/>
 
       <param name="manager/max_vel" value="$(arg planner_max_vel)" type="double"/>
       <param name="manager/max_acc" value="$(arg planner_max_acc)" type="double"/>
       <param name="manager/planning_horizon" value="$(arg planner_planning_horizon)" type="double"/>
       <param name="manager/drone_id" value="$(arg drone_id)"/>
+      <param name="manager/use_multitopology_trajs" value="$(arg use_multitopology_trajs)" type="bool"/>
       <param name="swarm/acceptance_radius" value="$(arg swarm_acceptance_radius)" type="double"/>
       <param name="swarm/filter_far_trajectories" value="$(arg swarm_filter_far_trajectories)" type="bool"/>
       <param name="swarm/time_warn_threshold" value="$(arg swarm_time_warn_threshold)" type="double"/>
@@ -149,6 +196,11 @@
       <param name="optimization/weight_time" value="$(arg planner_weight_time)" type="double"/>
       <param name="optimization/swarm_symmetry_gain" value="$(arg swarm_symmetry_gain)" type="double"/>
       <param name="optimization/swarm_clearance" value="$(arg swarm_clearance)" type="double"/>
+      <param name="optimization/astar_pool_size" value="$(arg planner_astar_pool_size)" type="int"/>
+      <param name="optimization/astar_debug_logging" value="$(arg planner_astar_debug_logging)" type="bool"/>
+      <param name="optimization/astar_step_factor" value="$(arg planner_astar_step_factor)" type="double"/>
+      <param if="$(eval arg('planner_weight_obstacle') > 0)" name="optimization/weight_obstacle" value="$(arg planner_weight_obstacle)" type="double"/>
+      <param name="fsm/astar_latency_predict" value="$(arg planner_astar_latency_predict)" type="double"/>
       <param name="optimization/max_vel" value="$(arg planner_max_vel)" type="double"/>
       <param name="optimization/max_acc" value="$(arg planner_max_acc)" type="double"/>
       <param name="optimization/max_jer" value="$(arg planner_max_jerk)" type="double"/>
@@ -157,12 +209,20 @@
     <node pkg="ego_planner_v2" type="traj_server_v2" name="traj_server_v2" output="screen">
       <remap from="position_cmd" to="position_cmd"/>
       <remap from="/position_cmd" to="position_cmd"/>
+      <remap from="~odom" to="odom"/>
       <remap from="~planning/trajectory" to="planning/trajectory"/>
       <param name="traj_server/time_forward" value="1.0" type="double"/>
+      <param name="traj_server/enable_stale_traj_extrapolation" value="$(arg traj_server_enable_stale_traj_extrapolation)"/>
+      <param name="traj_server/stale_traj_extrapolation_timeout" value="$(arg traj_server_stale_traj_extrapolation_timeout)" type="double"/>
+      <param name="traj_server/retime_position_cmd_now" value="$(arg traj_server_retime_position_cmd_now)"/>
+      <param name="traj_server/startup_yaw_hold_enabled" value="true"/>
+      <param name="traj_server/startup_yaw_hold_time" value="$(arg traj_server_startup_yaw_hold_time)" type="double"/>
+      <param name="traj_server/startup_yaw_release_speed" value="$(arg traj_server_startup_yaw_release_speed)" type="double"/>
+      <param name="traj_server/startup_yaw_release_distance" value="$(arg traj_server_startup_yaw_release_distance)" type="double"/>
     </node>
 
     <node pkg="px4ctrl" type="px4ctrl_node" name="px4ctrl" output="screen">
-      <remap from="~odom" to="odom"/>
+      <remap from="~odom" to="$(arg base_odom_input_topic)"/>
       <remap from="~cmd" to="position_cmd"/>
       <remap from="~takeoff_land" to="px4ctrl/takeoff_land"/>
       <remap from="/traj_start_trigger" to="traj_start_trigger"/>

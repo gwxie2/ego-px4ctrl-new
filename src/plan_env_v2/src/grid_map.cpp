@@ -540,10 +540,9 @@ void GridMap::projectDepthImage()
 
           pt_world = camera_r * pt_cur + md_.camera_pos_;
 
-          md_.proj_points_[md_.proj_points_cnt_++] = pt_world;
-
-          // check consistency with last image, disabled...
-          if (false)
+          // Optional temporal consistency check: reject depth outliers that disagree with the last frame.
+          bool keep_point = true;
+          if (mp_.depth_filter_tolerance_ > 0.0)
           {
             pt_reproj = last_camera_r_inv * (pt_world - md_.last_camera_pos_);
             double uu = pt_reproj.x() * mp_.fx_ / pt_reproj.z() + mp_.cx_;
@@ -551,16 +550,14 @@ void GridMap::projectDepthImage()
 
             if (uu >= 0 && uu < cols && vv >= 0 && vv < rows)
             {
-              if (fabs(md_.last_depth_image_.at<uint16_t>((int)vv, (int)uu) * inv_factor -
-                       pt_reproj.z()) < mp_.depth_filter_tolerance_)
-              {
-                md_.proj_points_[md_.proj_points_cnt_++] = pt_world;
-              }
+              keep_point = fabs(md_.last_depth_image_.at<uint16_t>((int)vv, (int)uu) * inv_factor -
+                                pt_reproj.z()) < mp_.depth_filter_tolerance_;
             }
-            else
-            {
-              md_.proj_points_[md_.proj_points_cnt_++] = pt_world;
-            }
+          }
+
+          if (keep_point)
+          {
+            md_.proj_points_[md_.proj_points_cnt_++] = pt_world;
           }
         }
       }

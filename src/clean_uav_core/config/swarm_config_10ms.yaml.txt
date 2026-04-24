@@ -1,0 +1,70 @@
+# =============================================================
+# 10m/s 科研极限 YAML
+#
+# 用法：
+# python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
+#   --version v2 \
+#   --swarm-config src/clean_uav_core/config/swarm_config_10ms.yaml
+#
+# 风险提示：
+# - 这是高频重规划、高加速度、高对时间权重的激进档位。
+# - 只建议在算力、里程计、控制器和场景都已验证后使用。
+# =============================================================
+
+simulation:
+  world_path: "swarm_benchmark_forest_phase1.world"
+  gui: false
+  use_rviz: true
+  enable_vins: false
+  use_truth_odom_runtime: true
+  sensor_degradation:
+    enabled: false
+    mode: clean
+
+physical_uav:
+  mass: 1.2
+  hover_percent: 0.58
+  pid_gain:
+    Kp: 4.5
+
+    # 10m/s 档显著提高速度环增益，增强控制刚性。
+    Kv: 2.5
+
+planning_base:
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+  resolution: 0.1
+  ground_height: -0.01
+  odom_depth_timeout: 0.5
+  grid_map_depth_filter_mindist: 0.1
+
+  # 极高速档需要更大的水平局部更新范围，提前看到更远障碍。
+  local_update_range_x: 35.0
+  local_update_range_y: 35.0
+  local_update_range_z: 4.5
+
+mission_profiles:
+  original:
+    # ===== 物理极限 =====
+    max_vel: 10.0
+    max_acc: 8.0
+    max_jerk: 16.0
+
+    # ===== 感知与前瞻 =====
+    planning_horizon: 25.0
+    replan_time: 0.1
+    emergency_time: 0.5
+
+    # ===== MINCO 优化 =====
+    weight_time: 200.0
+    lambda_smooth: 5.0
+
+    # ===== 避障 =====
+    grid_map_obstacles_inflation: 0.25
+    swarm_clearance: 0.8
+
+    # 其余群体项使用当前仓库中的高风险科研档思路。
+    swarm_collision_weight: 1.0
+    swarm_weight: 25000.0
+    swarm_symmetry_gain: 0.03

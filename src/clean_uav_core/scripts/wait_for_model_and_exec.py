@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import time
 import sys
 
 import rospy
@@ -27,7 +28,7 @@ class ModelReadinessGate:
         )
 
     def _model_states_callback(self, msg):
-        now = rospy.Time.now()
+        now = time.monotonic()
         if self.model_name in msg.name:
             if not self.model_visible:
                 self.model_visible = True
@@ -37,7 +38,7 @@ class ModelReadinessGate:
             self.visible_since = None
 
     def wait(self):
-        start_time = rospy.Time.now()
+        start_time = time.monotonic()
         rate = rospy.Rate(10.0)
 
         rospy.loginfo(
@@ -47,10 +48,11 @@ class ModelReadinessGate:
         )
 
         while not rospy.is_shutdown():
-            elapsed = (rospy.Time.now() - start_time).to_sec()
+            now = time.monotonic()
+            elapsed = now - start_time
 
             if self.model_visible and self.visible_since is not None:
-                stable_time = (rospy.Time.now() - self.visible_since).to_sec()
+                stable_time = now - self.visible_since
                 if stable_time < self.stable_duration:
                     rospy.loginfo_throttle(
                         1.0,
@@ -66,7 +68,7 @@ class ModelReadinessGate:
                             self.model_name,
                             self.post_ready_delay,
                         )
-                        rospy.sleep(self.post_ready_delay)
+                        time.sleep(self.post_ready_delay)
                     return True
 
             if self.timeout > 0.0 and elapsed >= self.timeout:

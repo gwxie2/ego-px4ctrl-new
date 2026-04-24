@@ -1,0 +1,62 @@
+simulation:
+  world_path: "vins_high_speed_track.world"
+  position_layout: "track_line"
+  position_scale: 1.0
+  gui: false
+  use_rviz: false
+  enable_vins: false
+  use_truth_odom_runtime: true
+  sensor_degradation:
+    enabled: true
+    mode: nominal
+    depth_median_filter_size: 3
+  track:
+    start_x: 2.0
+    delta_y: 3.0
+    start_z: 0.2
+    goal_x: 115.0
+    goal_z: 1.5
+    goal_mode: parallel
+    start_yaw: 0.0
+
+physical_uav:
+  mass: 1.2
+  hover_percent: 0.58
+  pid_gain:
+    Kp: 4.5
+    Kv: 2.0
+
+planning_base:
+  map_size_x: 80.0
+  map_size_y: 80.0
+  map_size_z: 5.0
+  resolution: 0.1
+  ground_height: -0.01
+  odom_depth_timeout: 0.5
+  grid_map_use_depth_filter: true
+  grid_map_depth_filter_tolerance: 0.15
+  grid_map_depth_filter_maxdist: 35.0
+  grid_map_depth_filter_mindist: 0.1
+  grid_map_depth_filter_margin: 2
+  grid_map_k_depth_scaling_factor: 1000.0
+  grid_map_skip_pixel: 2
+  local_update_range_x: 15.0
+  local_update_range_y: 15.0
+  local_update_range_z: 4.5
+
+mission_profiles:
+  smooth_priority_robust:
+    max_vel: 5.0
+    max_acc: 12.0
+    max_jerk: 15.0
+    planning_horizon: 17.0
+    replan_time: 0.6
+    emergency_time: 0.8
+    weight_time: 50.0
+    weight_obstacle: 15000.0
+    lambda_smooth: 4.0
+    grid_map_obstacles_inflation: 0.30
+    swarm_clearance: 0.65
+    swarm_collision_weight: 0.75
+    swarm_weight: 16000.0
+    swarm_symmetry_gain: 0.01

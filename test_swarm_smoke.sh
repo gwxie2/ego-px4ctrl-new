@@ -44,7 +44,7 @@ python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
   --output src/clean_uav_core/launch/test_single.launch > /dev/null 2>&1
 
 echo "  Launching single UAV..."
-timeout 30s roslaunch clean_uav_core test_single.launch gui:=false > /tmp/single_test.log 2>&1 &
+timeout 30s roslaunch clean_uav_core test_single.launch gui:=false benchmark_enable:=false > /tmp/single_test.log 2>&1 &
 TEST_PID=$!
 sleep 25
 if ps -p $TEST_PID > /dev/null; then
@@ -68,7 +68,7 @@ python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py \
   --output src/clean_uav_core/launch/test_dual.launch > /dev/null 2>&1
 
 echo "  Launching dual UAVs..."
-timeout 30s roslaunch clean_uav_core test_dual.launch gui:=false > /tmp/dual_test.log 2>&1 &
+timeout 30s roslaunch clean_uav_core test_dual.launch gui:=false benchmark_enable:=false > /tmp/dual_test.log 2>&1 &
 TEST_PID=$!
 sleep 25
 if ps -p $TEST_PID > /dev/null; then
@@ -83,7 +83,7 @@ fi
 # 3. 3 机默认配置测试
 echo "[3/5] 3-UAV default config test..."
 python3 src/clean_uav_core/scripts/swarm_launch_generator_yaml.py > /dev/null 2>&1
-timeout 30s roslaunch clean_uav_core swarm_top_level.launch gui:=false > /tmp/triple_test.log 2>&1 &
+timeout 30s roslaunch clean_uav_core swarm_top_level.launch gui:=false benchmark_enable:=false > /tmp/triple_test.log 2>&1 &
 TEST_PID=$!
 sleep 25
 if ps -p $TEST_PID > /dev/null; then
@@ -109,7 +109,7 @@ fi
 
 # 5. 端口配置测试
 echo "[5/5] Port configuration test..."
-timeout 40s roslaunch clean_uav_core swarm_top_level.launch gui:=false > /tmp/port_test.log 2>&1 &
+timeout 40s roslaunch clean_uav_core swarm_top_level.launch gui:=false benchmark_enable:=false > /tmp/port_test.log 2>&1 &
 TEST_PID=$!
 sleep 18
 

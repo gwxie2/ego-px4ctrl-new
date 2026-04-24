@@ -1,6 +1,7 @@
 #ifndef _PLANNER_MANAGER_H_
 #define _PLANNER_MANAGER_H_
 
+#include <string>
 #include <stdlib.h>
 
 #include <optimizer/poly_traj_optimizer.h>
@@ -58,6 +59,7 @@ namespace ego_planner
     inline double getLastReplanTotalMs(void) const { return last_replan_total_ms_; }
     inline int getLastReplanIterCount(void) const { return last_replan_iter_count_; }
     inline uint8_t getLastFailureReason(void) const { return last_failure_reason_; }
+    inline const std::string &getLastFailureDetail(void) const { return last_failure_detail_; }
     inline int getLastAStarExpandedNodes(void) const { return last_astar_expanded_nodes_; }
     inline double getLastGradientNormFinal(void) const { return last_gradient_norm_final_; }
     inline double getLastCostInitial(void) const { return last_cost_initial_; }
@@ -81,6 +83,8 @@ namespace ego_planner
     double last_replan_total_ms_{0.0};
     int last_replan_iter_count_{0};
     uint8_t last_failure_reason_{0};
+    std::string last_failure_detail_;
+    std::string last_init_state_failure_detail_;
     int last_astar_expanded_nodes_{0};
     double last_gradient_norm_final_{0.0};
     double last_cost_initial_{0.0};

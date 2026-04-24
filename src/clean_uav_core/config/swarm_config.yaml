@@ -45,6 +45,16 @@ simulation:
   # - 调整建议：仿真基线、集群回归测试建议 true；切到感知链路验证时再关。
   use_truth_odom_runtime: true
 
+  # sensor_degradation:
+  # - 含义：感知降级总开关和预设模式。
+  # - 调整建议：
+  #   - clean：回归/基线。
+  #   - mild：轻度延迟、漂移和深度噪声。
+  #   - extreme：更强的 sim-to-real gap 压力测试。
+  sensor_degradation:
+    enabled: false
+    mode: clean
+
 physical_uav:
   # mass:
   # - 含义：控制器使用的机体质量估计，直接影响推力解算。

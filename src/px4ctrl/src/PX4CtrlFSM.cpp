@@ -48,21 +48,26 @@ void PX4CtrlFSM::process()
 	{
 	case MANUAL_CTRL:
 	{
+		// 状态机初始化，设置初始状态为手动控制，并将悬停姿态初始化为零。
+		// 该构造函数用于设置控制器参数和状态机的初始状态。
+		// 其他初始化操作可以在此处添加。
 		if (rc_data.enter_hover_mode) // Try to jump to AUTO_HOVER
 		{
 			if (!odom_is_received(now_time))
 			{
 				ROS_ERROR("[px4ctrl] Reject AUTO_HOVER(L2). No odom!");
+		// 整个控制状态机的唯一入口：所有状态迁移、触发器消费和控制输出都在这里集中完成。
 				break;
 			}
 			if (cmd_is_received(now_time))
 			{
 				ROS_ERROR("[px4ctrl] Reject AUTO_HOVER(L2). You are sending commands before toggling into AUTO_HOVER, which is not allowed. Stop sending commands now!");
-				break;
+		// STEP1: 状态迁移
 			}
 			if (odom_data.v.norm() > 3.0)
 			{
 				ROS_ERROR("[px4ctrl] Reject AUTO_HOVER(L2). Odom_Vel=%fm/s, which seems that the locolization module goes wrong!", odom_data.v.norm());
+			// 手动态的职责非常单一：只有在满足起飞/悬停门槛时才允许离开 MANUAL_CTRL。
 				break;
 			}
 
@@ -75,6 +80,8 @@ void PX4CtrlFSM::process()
 		}
 		else if (param.takeoff_land.enable && takeoff_land_data.triggered && takeoff_land_data.takeoff_land_cmd == quadrotor_msgs::TakeoffLand::TAKEOFF) // Try to jump to AUTO_TAKEOFF
 		{
+			// 起飞命令必须满足：有里程计、无速度、已落地、RC 门控通过。
+			// 这组限制的目的不是“保守”，而是避免把离散命令注入到不稳定的起飞初段。
 			if (!odom_is_received(now_time))
 			{
 				ROS_ERROR("[px4ctrl] Reject AUTO_TAKEOFF. No odom!");
@@ -147,6 +154,7 @@ void PX4CtrlFSM::process()
 
 	case AUTO_HOVER:
 	{
+		// 悬停态是“等待命令”的中间层：既能接收外部轨迹，也能响应手动回退和降落。
 		if (!rc_data.is_hover_mode || !odom_is_received(now_time))
 		{
 			state = MANUAL_CTRL;
@@ -156,6 +164,7 @@ void PX4CtrlFSM::process()
 		}
 		else if (rc_data.is_command_mode && cmd_is_received(now_time))
 		{
+			// 收到有效 PositionCommand 时才切 CMD_CTRL；如果 FCU 还没进 OFFBOARD，先补一次切换。
 			if (state_data.current_state.mode != "OFFBOARD")
 			{
 				toggle_offboard_mode(true);
@@ -171,6 +180,7 @@ void PX4CtrlFSM::process()
 		else if (takeoff_land_data.triggered && takeoff_land_data.takeoff_land_cmd == quadrotor_msgs::TakeoffLand::LAND)
 		{
 
+			// 降落命令只允许从 AUTO_HOVER 进入，这样可以把命令控制和降落控制分开管理。
 			state = AUTO_LAND;
 			set_start_pose_for_takeoff_land(odom_data);
 
@@ -196,6 +206,7 @@ void PX4CtrlFSM::process()
 
 	case CMD_CTRL:
 	{
+		// 轨迹跟踪态：只要命令或里程计失效，就优先回退到更安全的层级。
 		if (!rc_data.is_hover_mode || !odom_is_received(now_time))
 		{
 			state = MANUAL_CTRL;
@@ -227,6 +238,7 @@ void PX4CtrlFSM::process()
 
 	case AUTO_TAKEOFF:
 	{
+		// 自动起飞分两段：先怠速转速建立，再根据固定爬升速度抬升到目标高度。
 		if ((now_time - takeoff_land.toggle_takeoff_land_time).toSec() < AutoTakeoffLand_t::MOTORS_SPEEDUP_TIME) // Wait for several seconds to warn prople.
 		{
 			des = get_rotor_speed_up_des(now_time);
@@ -250,6 +262,7 @@ void PX4CtrlFSM::process()
 
 	case AUTO_LAND:
 	{
+		// 自动降落的关键是先退出轨迹控制，再通过地面判定和 disarm 联动完成收尾。
 		if (!rc_data.is_hover_mode || !odom_is_received(now_time))
 		{
 			state = MANUAL_CTRL;
@@ -304,7 +317,7 @@ void PX4CtrlFSM::process()
 		break;
 	}
 
-	// STEP2: estimate thrust model
+	// STEP2: 推力模型估计只在悬停和轨迹跟踪时进行，手动/降落阶段保持简单。
 	if (state == AUTO_HOVER || state == CMD_CTRL)
 	{
 		// controller.estimateThrustModel(imu_data.a, bat_data.volt, param);
@@ -312,7 +325,7 @@ void PX4CtrlFSM::process()
 
 	}
 
-	// STEP3: solve and update new control commands
+	// STEP3: 生成控制量。降落初段走怠速，其他阶段走常规控制器。
 	if (rotor_low_speed_during_land) // used at the start of auto takeoff
 	{
 		motors_idling(imu_data, u);
@@ -324,7 +337,7 @@ void PX4CtrlFSM::process()
 		debug_pub.publish(debug_msg);
 	}
 
-	// STEP4: publish control commands to mavros
+	// STEP4: 把控制量发布给 MAVROS。body-rate / attitude 两种出口由参数统一切换。
 	if (param.use_bodyrate_ctrl)
 	{
 		publish_bodyrate_ctrl(u, now_time);
@@ -334,12 +347,12 @@ void PX4CtrlFSM::process()
 		publish_attitude_ctrl(u, now_time);
 	}
 
-	// STEP5: Detect if the drone has landed
+	// STEP5: 每轮都做落地检测，保证 AUTO_LAND 能闭环回到 MANUAL_CTRL。
 	land_detector(state, des, odom_data);
 	// cout << takeoff_land.landed << " ";
 	// fflush(stdout);
 
-	// STEP6: Clear flags beyound their lifetime
+	// STEP6: 清理只在本轮有效的一次性标志位，避免下个控制周期重复消费。
 	rc_data.enter_hover_mode = false;
 	rc_data.enter_command_mode = false;
 	rc_data.toggle_reboot = false;

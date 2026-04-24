@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-# 本文件用于在ROS系统中发布起飞或降落命令。通过参数配置，可以指定发布的命令类型（起飞或降落）、发布的主题名称、发布的频率以及发布的次数。该脚本在执行命令前会先等待 MAVROS 连接稳定，以避免在飞控尚未 ready 时提前触发起飞流程。
+"""在 MAVROS 状态稳定后，发布起飞或降落命令。
+
+它的职责是把“能不能发起飞/降落”这件事单独抽出来：先确认飞控已连接、
+未处于 armed 状态，再按固定频率重复发命令，降低单次消息丢失带来的风险。
+"""
 
 import rospy
 from mavros_msgs.msg import State
@@ -36,6 +40,7 @@ class TakeoffLandTrigger:
             raise ValueError("Unsupported command: {}".format(self.command))
 
     def _state_callback(self, msg):
+        # 只记录最新飞控状态，并维持“连接且未 armed”的稳定计时。
         self.latest_state = msg
 
         if msg.connected and not msg.armed:
@@ -57,6 +62,7 @@ class TakeoffLandTrigger:
             elapsed = (rospy.Time.now() - start_time).to_sec()
 
             if self.latest_state is not None and self.latest_state.connected and not self.latest_state.armed:
+                # 只有连接态和非 armed 状态持续稳定一段时间后，才开始发起飞/降落命令。
                 stable_time = 0.0
                 if self.connected_since is not None:
                     stable_time = (rospy.Time.now() - self.connected_since).to_sec()

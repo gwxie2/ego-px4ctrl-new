@@ -13,6 +13,7 @@ float64 replan_interval_ms
 float64 local_target_distance
 uint8 trigger_reason
 uint8 failure_reason
+string failure_detail
 uint32 a_star_expanded_nodes
 float64 gradient_norm_final
 float64 cost_initial

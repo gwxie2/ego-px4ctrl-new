@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-# 本文件用于在ROS系统中发布轨迹开始的触发消息。通过订阅无人机的位置信息（里程计），在启动后等待一段时间，然后从当前位姿发布指定数量的PoseStamped消息到约定的主题上。这些消息可以被轨迹服务器或其他组件订阅，用于触发轨迹规划或执行。该脚本确保在发布触发消息之前已经接收到位置信息，并且提供了一些参数配置选项，例如发布的频率和次数。
+"""在里程计稳定后，从当前位姿发布轨迹开始触发消息。
+
+这个节点的角色很明确：它不是规划器，也不是控制器，而是把“无人机已经
+站稳了，可以开始规划/执行”这件事转换成一个标准的 PoseStamped 触发事件。
+"""
 
 import rospy
 from geometry_msgs.msg import PoseStamped
@@ -20,6 +24,7 @@ class TrajStartTrigger:
         self.trigger_pub = rospy.Publisher(self.trigger_topic, PoseStamped, queue_size=10)
 
     def odom_callback(self, msg):
+        # 只缓存最新姿态，不在回调里做复杂判断，避免把订阅回调变成重逻辑入口。
         self.latest_pose = msg.pose.pose
 
     def run(self):
@@ -32,6 +37,7 @@ class TrajStartTrigger:
 
         wait_rate = rospy.Rate(20.0)
         while not rospy.is_shutdown() and self.latest_pose is None:
+            # 等待首个有效里程计，避免把空位姿发给后续节点。
             rospy.logwarn_throttle(2.0, "[clean_uav_core] traj_start_trigger waiting for odometry on %s", self.odom_topic)
             wait_rate.sleep()
 
