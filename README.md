@@ -2,6 +2,46 @@
 
 本文档的目标不是“介绍项目”，而是让后续接手者在 10 分钟内重新跑通全链路：环境、编译、清理、冒烟、基线复现、日志定位、以及已知风险边界。
 
+---
+
+## 📚 快速导航
+
+### 🔴 我是新手，需要快速上手
+👉 **[DOCS_NAVIGATION.md](DOCS_NAVIGATION.md#-新手上手只想快速跑通)** - 查看新手快速开始路径（10-30 分钟）
+
+### 🟡 我需要理解系统架构与代码逻辑
+👉 **[DOCS_NAVIGATION.md](DOCS_NAVIGATION.md#-开发者需要理解系统架构)** - 查看开发者学习路径（2-3 小时）
+
+### 🟢 我要做性能优化或二次开发
+👉 **[DOCS_NAVIGATION.md](DOCS_NAVIGATION.md#-性能优化研究深度二次开发)** - 查看高级开发路径（4+ 小时）
+
+### 🔵 系统出问题，我要快速排查
+👉 **[DOCS_NAVIGATION.md](DOCS_NAVIGATION.md#-调试排查系统运行异常)** - 查看故障排查指南（15-30 分钟）
+
+---
+
+## 📖 相关文档入口
+
+| 文档 | 位置 | 用途 |
+|-----|------|------|
+| **系统架构详解** | [docs/01_FUNDAMENTALS/system_architecture_CN.md](docs/01_FUNDAMENTALS/system_architecture_CN.md) | 理解五层架构与数据流 |
+| **参数配置完全指南** | [docs/02_CONFIGURATION/phase1_px4ctrl_config_explanation_CN.md](docs/02_CONFIGURATION/phase1_px4ctrl_config_explanation_CN.md) | px4ctrl 114 个参数说明 |
+| **多机系统原理** | [docs/03_MULTIUAV_PHASES/phase2_architecture_and_principles_CN.md](docs/03_MULTIUAV_PHASES/phase2_architecture_and_principles_CN.md) | Phase 2+ 多机协同设计 |
+| **日志阅读与排查** | [docs/03_MULTIUAV_PHASES/phase2_runtime_log_reading_guide_CN.md](docs/03_MULTIUAV_PHASES/phase2_runtime_log_reading_guide_CN.md) | 问题诊断与性能分析 |
+| **文档分层导航表** | [DOCS_NAVIGATION.md](DOCS_NAVIGATION.md) | 全文档系统导航（必读） |
+
+---
+
+## 📑 本文档目录
+
+- [1. 系统拓扑](#1-系统拓扑)
+- [2. 10 分钟快速复现](#2-10-分钟快速复现)
+- [3. 当前最重要的基线](#3-当前最重要的基线)
+- [4. 关键命令清单](#4-关键命令清单)
+- [5. 调参红线](#5-调参红线)
+
+---
+
 ## 1. 系统拓扑
 
 ```text
